@@ -62,6 +62,7 @@ private struct ListButtonStyleView: View {
     @State private var isPressed: Bool = false
     @State private var isExpanded: Bool = false
     @State private var lastTap: Date? = nil
+    @State private var longPressActive: Bool = false
 
     // Scroll-state tracking
     @State private var scrollCancelled: Bool = false
@@ -93,15 +94,21 @@ private struct ListButtonStyleView: View {
 
     /// A gesture to detect long presses and reset state if interrupted (e.g., by context menu).
     private var longPressResetGesture: some Gesture {
-        LongPressGesture(minimumDuration: 0.45) // Adjust duration if needed
+        LongPressGesture(minimumDuration: 0.45)
             .onEnded { _ in
-                // If a long press completes, reset the button's visual state
-                // as it's likely been interrupted by a context menu or similar.
+                longPressActive = true
                 setIsPressedTask?.cancel()
                 setIsPressedTask = nil
                 isPressed = false
                 isExpanded = false
                 scrollCancelled = false
+                
+                Task {
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+                    isPressed = false
+                    isExpanded = false
+                    longPressActive = false
+                }
             }
     }
 
@@ -111,7 +118,6 @@ private struct ListButtonStyleView: View {
             .onChanged { value in
                 guard !scrollCancelled else { return }
 
-                // If a scroll axis is specified, cancel the press when dragged enough in that axis:
                 if let axis = style.scrollView {
                     switch axis {
                     case .horizontal:
@@ -129,7 +135,6 @@ private struct ListButtonStyleView: View {
                     }
                 }
 
-                // For any large vertical drag, cancel:
                 if abs(value.translation.height) > 150 {
                     setIsPressed(false)
                 } else {
@@ -140,36 +145,31 @@ private struct ListButtonStyleView: View {
                 guard !scrollCancelled else {
                     scrollCancelled = false
                     Task {
-                        // Short delay to ensure visual reset
                         try? await Task.sleep(nanoseconds: 16_667)
                         isPressed = false
                     }
                     return
                 }
 
-                // If we are in a scrollView and didn't drag too far, treat it as a tap
                 if style.inScrollView {
-                    // We require a very small vertical offset to actually trigger
-                    if abs(value.translation.height) < 5 {
-                        // Force isPressed to true briefly for the trigger
+                    if abs(value.translation.height) < 5 && !longPressActive {
                         isPressed = true
-                        // Cancel any pending press tasks
                         setIsPressedTask?.cancel()
                         setIsPressedTask = nil
                         configuration.trigger()
                     }
 
-                    // Reset after a tiny delay
                     Task {
                         try? await Task.sleep(nanoseconds: 16_667)
                         isPressed = false
+                        longPressActive = false
                     }
                 } else {
-                    // Normal (non-scroll) case
-                    if isPressed {
+                    if isPressed && !longPressActive {
                         configuration.trigger()
                     }
                     isPressed = false
+                    longPressActive = false
                 }
             }
     }
