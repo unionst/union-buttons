@@ -5,17 +5,23 @@ import PackageDescription
 let package = Package(
     name: "union-buttons",
     platforms: [
-        .iOS(.v15)
+        .iOS(.v17)
     ],
     products: [
         .library(
             name: "UnionButtons",
             targets: ["UnionButtons"]
-        ),
+        )
+    ],
+    dependencies: [
+        .package(path: "../union-haptics")
     ],
     targets: [
         .target(
-            name: "UnionButtons"
-        ),
+            name: "UnionButtons",
+            dependencies: [
+                .product(name: "UnionHaptics", package: "union-haptics")
+            ]
+        )
     ]
 )
