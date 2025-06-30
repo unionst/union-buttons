@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-public struct ListButtonStyle: PrimitiveButtonStyle {
+public struct ListPrimitiveButtonStyle: PrimitiveButtonStyle {
 
     var horizontalPadding: CGFloat
     var verticalPadding: CGFloat
@@ -57,7 +57,7 @@ public struct ListButtonStyle: PrimitiveButtonStyle {
 /// The internal view that holds state and renders the button style.
 private struct ListButtonStyleView: View {
     let configuration: PrimitiveButtonStyleConfiguration
-    let style: ListButtonStyle
+    let style: ListPrimitiveButtonStyle
 
     @State private var isPressed: Bool = false
     @State private var isExpanded: Bool = false
