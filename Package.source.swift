@@ -10,13 +10,13 @@ let package = Package(
     products: [
         .library(
             name: "UnionButtons",
+            type: .dynamic,
             targets: ["UnionButtons"]
         ),
     ],
     targets: [
-        .binaryTarget(
-            name: "UnionButtons",
-            path: "UnionButtons.xcframework"
-        )
+        .target(
+            name: "UnionButtons"
+        ),
     ]
 )
