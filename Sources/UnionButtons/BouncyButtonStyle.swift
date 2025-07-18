@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UnionHaptics
 
 @available(iOS 17, *)
 public struct BouncyButtonStyle<Transformed: View>: PrimitiveButtonStyle {
@@ -119,7 +120,10 @@ public struct BouncyButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                 isExpanded = true
                 lastTap = Date()
                 if style.haptics {
-                    Task.detached { try? await Task.sleep(for: .seconds(0.1)) }
+                    Task.detached(priority: .high) {
+                        try? await Task.sleep(for: .seconds(0.1))
+                        await Haptics.heavy()
+                    }
                 }
             } else {
                 let elapsed = lastTap.map { Date().timeIntervalSince($0) } ?? 0
