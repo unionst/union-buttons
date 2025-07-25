@@ -133,7 +133,6 @@ public struct BouncyButtonStyle<Transformed: View>: PrimitiveButtonStyle {
         }
     }
 }
-<<<<<<< HEAD
 
 #Preview {
     Button {
@@ -149,5 +148,5 @@ public struct BouncyButtonStyle<Transformed: View>: PrimitiveButtonStyle {
             .scaleEffect(isScaled ? 1.05 : 1)
     })
 }
-=======
->>>>>>> 887ae5f3dc51be8594d3aadacf80692a55bea881
+
+
