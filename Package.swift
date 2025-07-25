@@ -14,7 +14,7 @@ let package = Package(
         )
     ],
     dependencies: [
-        .package(path: "../union-haptics")
+        .package(url: "https://github.com/unionst/union-haptics.git", from: "1.0.0")
     ],
     targets: [
         .target(

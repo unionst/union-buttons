@@ -1,0 +1,15 @@
+{
+  "originHash" : "d194d792dc79b71bf48e394da87d9febfea28545b81610521ec7ecec1707066b",
+  "pins" : [
+    {
+      "identity" : "union-haptics",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/unionst/union-haptics.git",
+      "state" : {
+        "revision" : "c7ccfcefdbd889a26cc47aac3668887e7943d9dd",
+        "version" : "1.0.0"
+      }
+    }
+  ],
+  "version" : 3
+}
