@@ -14,7 +14,7 @@ public struct HapticOpacityButtonStyle: ButtonStyle {
 
     var haptic: SensoryFeedback?
 
-    init(haptic: SensoryFeedback? = nil) {
+    public init(haptic: SensoryFeedback? = nil) {
         self.haptic = haptic
     }
 
@@ -47,9 +47,9 @@ public struct HapticOpacityButtonStyle: ButtonStyle {
 }
 
 extension ButtonStyle where Self == HapticOpacityButtonStyle {
-    static var hapticOpacity: Self { .init() }
+    public static var hapticOpacity: Self { .init() }
 
-    static func hapticOpacity(_ haptic: SensoryFeedback? = nil) -> Self {
+    public static func hapticOpacity(_ haptic: SensoryFeedback? = nil) -> Self {
         .init(haptic: haptic)
     }
 }
