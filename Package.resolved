@@ -6,8 +6,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/unionst/union-haptics.git",
       "state" : {
-        "revision" : "c7ccfcefdbd889a26cc47aac3668887e7943d9dd",
-        "version" : "1.0.0"
+        "revision" : "f837a21a2c8af5c7f7d03ade72f31abf1a4e11d1",
+        "version" : "1.1.0"
       }
     }
   ],

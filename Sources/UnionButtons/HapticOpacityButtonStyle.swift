@@ -12,6 +12,16 @@ import UnionHaptics
 public struct HapticOpacityButtonStyle: ButtonStyle {
     @State private var isPressed = false
 
+    var haptic: SensoryFeedback?
+
+    init(haptic: SensoryFeedback? = nil) {
+        self.haptic = haptic
+    }
+
+    var unwrappedHaptic: SensoryFeedback {
+        haptic ?? .impact(flexibility: .rigid)
+    }
+
     public func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .opacity(configuration.isPressed ? 0.5 : 1)
@@ -29,7 +39,7 @@ public struct HapticOpacityButtonStyle: ButtonStyle {
                 if pressed {
                     Task.detached(priority: .high) {
                         try await Task.sleep(for: .seconds(0.1))
-                        await Haptics.rigid()
+                        await Haptics.play(unwrappedHaptic)
                     }
                 }
             }
@@ -38,4 +48,17 @@ public struct HapticOpacityButtonStyle: ButtonStyle {
 
 extension ButtonStyle where Self == HapticOpacityButtonStyle {
     static var hapticOpacity: Self { .init() }
+
+    static func hapticOpacity(_ haptic: SensoryFeedback? = nil) -> Self {
+        .init(haptic: haptic)
+    }
+}
+
+// MARK: - Preview
+
+#Preview {
+    Button("Tap me") {
+
+    }
+    .buttonStyle(.hapticOpacity)
 }
