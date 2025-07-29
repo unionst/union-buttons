@@ -6,348 +6,120 @@
 //
 
 import SwiftUI
-import UnionHaptics
 
-extension CGPoint {
-    func distance(to point: CGPoint) -> CGFloat {
-        sqrt(pow(x - point.x, 2) + pow(y - point.y, 2))
-    }
-}
-
-/// Movement‑aware button that fades while pressed and vibrates when the touch resolves into a tap.
-/// It **auto‑detects** whether it’s inside a horizontal scroll view, a vertical scroll view, both,
-/// or none — no configuration needed.
+/// Convenience button style that provides opacity-based visual feedback.
+///
+/// Built on top of `UnionButtonStyle` with universal movement detection. The button fades to 50% 
+/// opacity when pressed and provides haptic feedback. Automatically cancels when scrolling or 
+/// other parent movement is detected.
+///
+/// ## Basic Usage
+/// ```swift
+/// Button("Simple Opacity Button") {
+///     print("Tapped!")
+/// }
+/// .buttonStyle(.hapticOpacity)
+/// ```
+///
+/// ## In a ScrollView
+/// ```swift
+/// ScrollView {
+///     LazyVStack {
+///         ForEach(1...50, id: \.self) { item in
+///             Button("Item \(item)") {
+///                 print("Selected item \(item)")
+///             }
+///             .buttonStyle(.hapticOpacity)
+///             .padding(.horizontal)
+///         }
+///     }
+/// }
+/// ```
+///
+/// ## Custom Haptics
+/// ```swift
+/// Button("Soft Haptic") {
+///     // Action
+/// }
+/// .buttonStyle(HapticOpacityButtonStyle(.impact(flexibility: .soft)))
+/// ```
 @available(iOS 17, *)
 public struct HapticOpacityButtonStyle: PrimitiveButtonStyle {
-    private let haptic: SensoryFeedback
-    private let grace: TimeInterval
-    private let delay: Duration
+    private let haptic: SensoryFeedback?
     private let scrollViewOnly: Bool
 
     // MARK: Init
+    
+    /// Creates a haptic opacity button style.
+    ///
+    /// - Parameters:
+    ///   - haptic: The haptic feedback to play when pressed. Defaults to `.impact(flexibility: .rigid)`. Pass `nil` to disable haptics.
+    ///   - scrollViewOnly: If `true`, uses legacy scroll view detection instead of universal movement detection. Defaults to `false`.
+    ///
+    /// ## Basic Usage
+    /// ```swift
+    /// Button("Tap me") {
+    ///     print("Button tapped!")
+    /// }
+    /// .buttonStyle(.hapticOpacity)
+    /// ```
+    ///
+    /// ## Disable Haptics
+    /// ```swift
+    /// Button("Silent Button") {
+    ///     // Action
+    /// }
+    /// .buttonStyle(HapticOpacityButtonStyle(nil))
+    /// ```
     public init(
         _ haptic: SensoryFeedback? = nil,
-        grace: TimeInterval = 0.15,
-        delay: Duration = .milliseconds(100),
         scrollViewOnly: Bool = false
     ) {
-        self.haptic = haptic ?? .impact(flexibility: .rigid)
-        self.grace  = grace
-        self.delay  = delay
+        self.haptic = haptic
         self.scrollViewOnly = scrollViewOnly
     }
 
     public func makeBody(configuration: Configuration) -> some View {
-        Content(configuration: configuration,
-                haptic: haptic,
-                grace: grace,
-                delay: delay,
-                scrollViewOnly: scrollViewOnly)
-    }
-
-    // MARK: Internal view
-    private struct Content: View {
-        let configuration: PrimitiveButtonStyleConfiguration
-        let haptic: SensoryFeedback
-        let grace: TimeInterval
-        let delay: Duration
-        let scrollViewOnly: Bool
-
-        // Universal movement detection (default)
-        @State private var lastGlobalFrame = CGRect.zero
-        @State private var lastLocalFrame = CGRect.zero
-        @State private var lastMove = Date.distantPast
-        
-        // Legacy scroll view detection (scrollViewOnly = true)
-        @State private var inHoriz = false
-        @State private var inVert = false
-        @State private var lastPoint = CGPoint.zero
-
-        // UI + haptic state
-        @State private var flash = false
-        @State private var pressed = false
-        @State private var scrollCancelled = false
-        @State private var setPressedTask: Task<Void, Never>?
-        @State private var buttonBounds = CGRect.zero
-
-        private struct Info: Equatable { 
-            var globalFrame: CGRect
-            var localFrame: CGRect
-            var point: CGPoint
-            var inHoriz: Bool
-            var inVert: Bool
+        UnionButtonStyle(
+            haptic,
+            scrollViewOnly: scrollViewOnly
+        ) { label, isPressed in
+            label
+                .opacity(isPressed ? 0.5 : 1)
+                .animation(.spring(duration: isPressed ? 0.1 : 0.3), value: isPressed)
         }
-        private var dimmed: Bool { pressed || flash }
-
-        var body: some View {
-            configuration.label
-                .opacity(dimmed ? 0.5 : 1)
-                .animation(.spring(duration: dimmed ? 0.1 : 0.3), value: dimmed)
-                .background {
-                    GeometryReader { proxy in
-                        Color.clear
-                            .onAppear {
-                                buttonBounds = proxy.frame(in: .local)
-                            }
-                            .onChange(of: proxy.frame(in: .local)) { _, newBounds in
-                                buttonBounds = newBounds
-                            }
-                    }
-                }
-                .onGeometryChange(for: Info.self) { proxy in
-                    let globalFrame = proxy.frame(in: .global)
-                    let localFrame = proxy.frame(in: .local)
-                    let horiz = proxy.bounds(of: .scrollView(axis: .horizontal)) != nil
-                    let vert = proxy.bounds(of: .scrollView(axis: .vertical)) != nil
-                    let point = CGPoint(x: globalFrame.minX, y: globalFrame.minY)
-                    return Info(globalFrame: globalFrame, localFrame: localFrame, point: point, inHoriz: horiz, inVert: vert)
-                } action: { info in
-                    if scrollViewOnly {
-                        // Legacy scroll view detection
-                        inHoriz = info.inHoriz
-                        inVert = info.inVert
-                        if (inHoriz || inVert) && info.point != lastPoint {
-                            lastPoint = info.point
-                            lastMove = Date()
-                            setPressedTask?.cancel()
-                            setPressedTask = nil
-                            pressed = false
-                            flash = false
-                            #if DEBUG
-                            print("HapticOpacityButtonStyle: Scroll detected! Cancelled press task")
-                            #endif
-                        }
-                    } else {
-                        // Universal movement detection (default)
-                        let globalMoved = info.globalFrame != lastGlobalFrame
-                        let localMoved = info.localFrame != lastLocalFrame
-                        
-                        // If global moved but local didn't (or they moved differently), 
-                        // it suggests the whole view is being moved by a parent
-                        if globalMoved && (!localMoved || 
-                            (info.globalFrame.origin.distance(to: lastGlobalFrame.origin) > 
-                             info.localFrame.origin.distance(to: lastLocalFrame.origin))) {
-                            lastMove = Date()
-                            setPressedTask?.cancel()
-                            setPressedTask = nil
-                            pressed = false
-                            flash = false
-                            #if DEBUG
-                            print("HapticOpacityButtonStyle: View movement detected! Cancelled press task")
-                            #endif
-                        }
-                        
-                        lastGlobalFrame = info.globalFrame
-                        lastLocalFrame = info.localFrame
-                    }
-                }
-                .contentShape(.rect)
-                .simultaneousGesture(drag)
-        }
-
-        // MARK: Drag gesture
-        private var drag: some Gesture {
-            DragGesture(minimumDistance: 0)
-                .onChanged { value in
-                    guard !scrollCancelled else { return }
-                    
-                    // Check if we're inside button bounds
-                    let insideBounds = buttonBounds.contains(value.location)
-                    
-                    // Check for movement-based cancellation
-                    if scrollViewOnly {
-                        // Legacy: only cancel if in scroll view and dragging along axis
-                        let dx = abs(value.translation.width)
-                        let dy = abs(value.translation.height)
-                        if (inHoriz && dx > 5) || (inVert && dy > 5) {
-                            cancelForScroll()
-                            return
-                        }
-                    } else {
-                        // Universal: cancel on any significant drag
-                        let dragDistance = sqrt(pow(value.translation.width, 2) + pow(value.translation.height, 2))
-                        if dragDistance > 5 {
-                            cancelForScroll()
-                            return
-                        }
-                    }
-                    
-                    // Set pressed state based on bounds
-                    if insideBounds {
-                        setPressed(true)
-                    } else {
-                        // Outside bounds - cancel any pending press and un-highlight
-                        setPressedTask?.cancel()
-                        setPressedTask = nil
-                        pressed = false
-                        flash = false
-                    }
-                }
-                .onEnded { value in 
-                    guard !scrollCancelled else { 
-                        resetAfterScrollCancel()
-                        return 
-                    }
-                    
-                    let insideBounds = buttonBounds.contains(value.location)
-                    let still = Date().timeIntervalSince(lastMove) > grace
-                    let dragDistance = sqrt(pow(value.translation.width, 2) + pow(value.translation.height, 2))
-                    
-                    let timeSinceMove = Date().timeIntervalSince(lastMove)
-                    #if DEBUG
-                    print("HapticOpacityButtonStyle: timeSinceMove=\(timeSinceMove), grace=\(grace), still=\(still)")
-                    #endif
-                    
-                    if scrollViewOnly {
-                        // Legacy behavior
-                        if inHoriz || inVert {
-                            if dragDistance < 5 && still && insideBounds {
-                                // If task is still pending, this is a quick tap - trigger immediately with haptic
-                                if setPressedTask != nil {
-                                    pressed = true
-                                    setPressedTask?.cancel(); setPressedTask = nil
-                                    flash = true
-                                    Task { try? await Task.sleep(for: .milliseconds(150)); flash = false }
-                                    Task.detached {
-                                        await Haptics.play(haptic)
-                                    }
-                                }
-                                configuration.trigger()
-                            }
-                            Task { try? await Task.sleep(for: .seconds(1.0 / 60.0)); setPressed(false) }
-                        } else {
-                            if pressed && insideBounds { configuration.trigger() }
-                            setPressed(false)
-                        }
-                    } else {
-                        // Universal behavior
-                        // For small drags that end inside bounds and view hasn't been moving
-                        if dragDistance < 5 && still && insideBounds {
-                            // If task is still pending, this is a quick tap - trigger immediately with haptic
-                            if setPressedTask != nil {
-                                pressed = true
-                                setPressedTask?.cancel(); setPressedTask = nil
-                                flash = true
-                                Task { try? await Task.sleep(for: .milliseconds(150)); flash = false }
-                                Task.detached {
-                                    await Haptics.play(haptic)
-                                }
-                            }
-                            // If task already completed, just trigger (haptic already played)
-                            configuration.trigger()
-                        }
-                        
-                        // For simple non-moving contexts
-                        if pressed && insideBounds && still { 
-                            configuration.trigger() 
-                        }
-                        
-                        Task { try? await Task.sleep(for: .seconds(1.0 / 60.0)); setPressed(false) }
-                    }
-                }
-        }
-
-       
-        private func setPressed(_ pressing: Bool) {
-            if pressing {
-                guard setPressedTask == nil, !pressed else { return }
-                
-                if scrollViewOnly {
-                    // Legacy behavior: only delay if in scroll view
-                    if inHoriz || inVert {
-                        setPressedTask = Task {
-                            let delayTime: TimeInterval = Double(delay.components.seconds) + Double(delay.components.attoseconds) / 1e18
-                            try? await Task.sleep(for: .seconds(delayTime))
-                            guard !Task.isCancelled else { return }
-                            await MainActor.run {
-                                let still = Date().timeIntervalSince(lastMove) > grace
-                                if !still {
-                                    #if DEBUG
-                                    print("HapticOpacityButtonStyle: Press task completed but scroll was recent, not showing feedback")
-                                    #endif
-                                    setPressedTask = nil
-                                    return
-                                }
-                                
-                                pressed = true
-                                setPressedTask = nil
-                                flash = true
-                                Task { try? await Task.sleep(for: .milliseconds(150)); flash = false }
-                                
-                                Task.detached {
-                                    try? await Task.sleep(for: .seconds(0.1))
-                                    await Haptics.play(haptic)
-                                }
-                            }
-                        }
-                    } else {
-                        // Not in scroll view, immediate feedback
-                        pressed = true
-                        Task.detached {
-                            try? await Task.sleep(for: .seconds(0.1))
-                            await Haptics.play(haptic)
-                        }
-                    }
-                } else {
-                    // Universal behavior: always delay to allow movement detection
-                    setPressedTask = Task {
-                        let delayTime: TimeInterval = Double(delay.components.seconds) + Double(delay.components.attoseconds) / 1e18
-                        try? await Task.sleep(for: .seconds(delayTime))
-                        guard !Task.isCancelled else { return }
-                        await MainActor.run {
-                            let still = Date().timeIntervalSince(lastMove) > grace
-                            if !still {
-                                #if DEBUG
-                                print("HapticOpacityButtonStyle: Press task completed but movement was recent, not showing feedback")
-                                #endif
-                                setPressedTask = nil
-                                return
-                            }
-                            
-                            pressed = true
-                            setPressedTask = nil
-                            flash = true
-                            Task { try? await Task.sleep(for: .milliseconds(150)); flash = false }
-                            
-                            Task.detached {
-                                try? await Task.sleep(for: .seconds(0.1))
-                                await Haptics.play(haptic)
-                            }
-                        }
-                    }
-                }
-            } else {
-                setPressedTask?.cancel()
-                setPressedTask = nil
-                pressed = false
-            }
-        }
-        
-        private func cancelForScroll() {
-            setPressedTask?.cancel(); setPressedTask = nil
-            pressed = false; flash = false
-            scrollCancelled = true
-        }
-        
-        private func resetAfterScrollCancel() {
-            scrollCancelled = false
-            Task { 
-                try? await Task.sleep(for: .seconds(1.0 / 60.0))
-                pressed = false
-                flash = false 
-            }
-        }
-
-
+        .makeBody(configuration: configuration)
     }
 }
 
 // MARK: Sugar
 extension PrimitiveButtonStyle where Self == HapticOpacityButtonStyle {
-    /// Universal movement detection (default) - works with scroll views, sheets, and any moving container
+    /// Opacity-based button with universal movement detection and haptic feedback.
+    ///
+    /// Fades to 50% opacity when pressed and provides haptic feedback. Works with scroll views,
+    /// sheets, and any moving container with automatic cancellation during movement.
+    ///
+    /// ## Usage
+    /// ```swift
+    /// Button("Fade Button") {
+    ///     print("Faded!")
+    /// }
+    /// .buttonStyle(.hapticOpacity)
+    /// ```
     public static var hapticOpacity: Self { .init() }
     
-    /// Legacy scroll view only detection - only detects ScrollView specifically
+    /// Legacy opacity button with scroll view only detection.
+    ///
+    /// Uses the original scroll view specific detection instead of universal movement detection.
+    /// Only recommended for specific compatibility cases.
+    ///
+    /// ## Usage
+    /// ```swift
+    /// Button("Legacy Button") {
+    ///     print("Legacy tapped!")
+    /// }
+    /// .buttonStyle(.hapticOpacityScrollViewOnly)
+    /// ```
     public static var hapticOpacityScrollViewOnly: Self { .init(scrollViewOnly: true) }
 }
 
