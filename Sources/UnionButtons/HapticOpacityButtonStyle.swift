@@ -72,7 +72,7 @@ public struct HapticOpacityButtonStyle: PrimitiveButtonStyle {
     /// .buttonStyle(HapticOpacityButtonStyle(nil))
     /// ```
     public init(
-        _ haptic: SensoryFeedback? = nil,
+        _ haptic: SensoryFeedback? = .impact(flexibility: .rigid),
         scrollViewOnly: Bool = false
     ) {
         self.haptic = haptic
