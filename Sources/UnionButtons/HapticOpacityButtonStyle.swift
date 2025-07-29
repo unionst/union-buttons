@@ -5,52 +5,93 @@
 //  Created by Ben Sage on 6/25/25.
 //
 
-import Foundation
 import SwiftUI
 import UnionHaptics
 
 public struct HapticOpacityButtonStyle: ButtonStyle {
-    @State private var isPressed = false
+    private let haptic: SensoryFeedback
+    private let grace: TimeInterval = 0.15
 
-    var haptic: SensoryFeedback?
-
-    public init(haptic: SensoryFeedback? = nil) {
-        self.haptic = haptic
-    }
-
-    var unwrappedHaptic: SensoryFeedback {
-        haptic ?? .impact(flexibility: .rigid)
+    public init(_ haptic: SensoryFeedback? = nil) {
+        self.haptic = haptic ?? .impact(flexibility: .rigid)
     }
 
     public func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .opacity(configuration.isPressed ? 0.5 : 1)
-            .onChange(of: configuration.isPressed) { _, pressed in
-                if pressed {
-                    withAnimation(.spring(duration: 0.1)) {
-                        isPressed = true
-                    }
-                } else {
-                    withAnimation(.spring(duration: 0.3)) {
-                        isPressed = false
-                    }
-                }
+        BodyView(configuration: configuration, haptic: haptic, grace: grace)
+    }
 
-                if pressed {
-                    Task.detached(priority: .high) {
-                        try await Task.sleep(for: .seconds(0.1))
-                        await Haptics.play(unwrappedHaptic)
+    private struct BodyView: View {
+        let configuration: ButtonStyle.Configuration
+        let haptic: SensoryFeedback
+        let grace: TimeInterval
+
+        @State private var inScroll = false
+        @State private var lastMove: Date = .distantPast
+        @State private var lastPoint: CGPoint = .zero
+        @State private var flash = false
+
+        private struct TapInfo: Equatable {
+            var p: CGPoint
+            var inside: Bool
+        }
+
+        private var dimmed: Bool {
+            configuration.isPressed || flash
+        }
+
+        var body: some View {
+            configuration.label
+                .opacity(dimmed ? 0.5 : 1)
+                .animation(
+                    .spring(duration: dimmed ? 0.1 : 0.3),
+                    value: dimmed
+                )
+                .onGeometryChange(for: TapInfo.self) { proxy in
+                    let inside = proxy.bounds(of: .scrollView) != nil
+                    let g = proxy.frame(in: .global)
+                    return TapInfo(p: CGPoint(x: g.minX, y: g.minY), inside: inside)
+                } action: { info in
+                    Task { @MainActor in
+                        inScroll = info.inside
+                        if info.inside && info.p != lastPoint {
+                            lastPoint = info.p
+                            lastMove = Date()
+                        }
                     }
                 }
-            }
+                .contentShape(.rect)
+                .simultaneousGesture(
+                    TapGesture().onEnded {
+                        let still = Date().timeIntervalSince(lastMove) > grace
+                        let shouldVibrate = (inScroll == false || still)
+
+                        if inScroll && still {
+                            Task { @MainActor in
+                                flash = true
+                                try? await Task.sleep(for: .milliseconds(150))
+                                flash = false
+                            }
+                        }
+
+                        if shouldVibrate {
+                            Task.detached {
+                                try? await Task.sleep(for: .milliseconds(60))
+                                await Haptics.play(haptic)
+                            }
+                        }
+                    }
+                )
+        }
     }
 }
 
 extension ButtonStyle where Self == HapticOpacityButtonStyle {
-    public static var hapticOpacity: Self { .init() }
+    public static var hapticOpacity: Self {
+        .init()
+    }
 
     public static func hapticOpacity(_ haptic: SensoryFeedback? = nil) -> Self {
-        .init(haptic: haptic)
+        .init(haptic)
     }
 }
 
