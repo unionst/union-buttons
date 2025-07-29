@@ -53,6 +53,7 @@ public struct HapticOpacityButtonStyle: PrimitiveButtonStyle {
         @State private var pressed = false
         @State private var scrollCancelled = false
         @State private var setPressedTask: Task<Void, Never>?
+        @State private var buttonBounds = CGRect.zero
 
         private struct Info: Equatable { var p: CGPoint; var horiz: Bool; var vert: Bool }
         private var dimmed: Bool { pressed || flash }
@@ -61,6 +62,17 @@ public struct HapticOpacityButtonStyle: PrimitiveButtonStyle {
             configuration.label
                 .opacity(dimmed ? 0.5 : 1)
                 .animation(.spring(duration: dimmed ? 0.1 : 0.3), value: dimmed)
+                .background {
+                    GeometryReader { proxy in
+                        Color.clear
+                            .onAppear {
+                                buttonBounds = proxy.frame(in: .local)
+                            }
+                            .onChange(of: proxy.frame(in: .local)) { _, newBounds in
+                                buttonBounds = newBounds
+                            }
+                    }
+                }
                 .onGeometryChange(for: Info.self) { proxy in
                     let horiz = proxy.bounds(of: .scrollView(axis: .horizontal)) != nil
                     let vert  = proxy.bounds(of: .scrollView(axis: .vertical))   != nil
@@ -91,6 +103,9 @@ public struct HapticOpacityButtonStyle: PrimitiveButtonStyle {
                 .onChanged { value in
                     guard !scrollCancelled else { return }
                     
+                    // Check if we're inside button bounds
+                    let insideBounds = buttonBounds.contains(value.location)
+                    
                     // Check for scroll cancellation
                     let dx = abs(value.translation.width)
                     let dy = abs(value.translation.height)
@@ -99,8 +114,16 @@ public struct HapticOpacityButtonStyle: PrimitiveButtonStyle {
                         return
                     }
                     
-                    // Set pressed state
-                    setPressed(true)
+                    // Set pressed state based on bounds
+                    if insideBounds {
+                        setPressed(true)
+                    } else {
+                        // Outside bounds - cancel any pending press and un-highlight
+                        setPressedTask?.cancel()
+                        setPressedTask = nil
+                        pressed = false
+                        flash = false
+                    }
                 }
                 .onEnded { value in 
                     guard !scrollCancelled else { 
@@ -108,13 +131,15 @@ public struct HapticOpacityButtonStyle: PrimitiveButtonStyle {
                         return 
                     }
                     
+                    let insideBounds = buttonBounds.contains(value.location)
+                    
                     if inHoriz || inVert {
                         let still = Date().timeIntervalSince(lastMove) > grace
                         let timeSinceMove = Date().timeIntervalSince(lastMove)
                         #if DEBUG
                         print("HapticOpacityButtonStyle: timeSinceMove=\(timeSinceMove), grace=\(grace), still=\(still)")
                         #endif
-                        if max(abs(value.translation.width), abs(value.translation.height)) < 5 && still {
+                        if max(abs(value.translation.width), abs(value.translation.height)) < 5 && still && insideBounds {
                             // If task is still pending, this is a quick tap - trigger immediately with haptic
                             if setPressedTask != nil {
                                 pressed = true
@@ -130,7 +155,7 @@ public struct HapticOpacityButtonStyle: PrimitiveButtonStyle {
                         }
                         Task { try? await Task.sleep(for: .seconds(1.0 / 60.0)); setPressed(false) }
                     } else {
-                        if pressed { configuration.trigger() }
+                        if pressed && insideBounds { configuration.trigger() }
                         setPressed(false)
                     }
                 }
