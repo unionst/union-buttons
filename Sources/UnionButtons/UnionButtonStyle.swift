@@ -54,7 +54,7 @@ extension CGPoint {
 public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
     public typealias Transform = (PrimitiveButtonStyleConfiguration.Label, /* pressed */ Bool) -> Transformed
     
-    private let haptic: SensoryFeedback
+    private let haptic: SensoryFeedback?
     private let grace: TimeInterval
     private let delay: Duration
     private let scrollViewOnly: Bool
@@ -91,11 +91,11 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
     /// })
     /// ```
     public init(
-        _ haptic: SensoryFeedback? = nil,
+        _ haptic: SensoryFeedback? = .impact(flexibility: .rigid),
         scrollViewOnly: Bool = false,
         @ViewBuilder transform: @escaping Transform
     ) {
-        self.haptic = haptic ?? .impact(flexibility: .rigid)
+        self.haptic = haptic
         self.grace = 0.15
         self.delay = .milliseconds(100)
         self.scrollViewOnly = scrollViewOnly
@@ -116,7 +116,7 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
     // MARK: Internal view
     private struct Content: View {
         let configuration: PrimitiveButtonStyleConfiguration
-        let haptic: SensoryFeedback
+        let haptic: SensoryFeedback?
         let grace: TimeInterval
         let delay: Duration
         let scrollViewOnly: Bool
@@ -169,10 +169,12 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                     let point = CGPoint(x: globalFrame.minX, y: globalFrame.minY)
                     return Info(globalFrame: globalFrame, localFrame: localFrame, point: point, inHoriz: horiz, inVert: vert)
                 } action: { info in
+                    // Always track scroll view presence for both modes
+                    inHoriz = info.inHoriz
+                    inVert = info.inVert
+                    
                     if scrollViewOnly {
                         // Legacy scroll view detection
-                        inHoriz = info.inHoriz
-                        inVert = info.inVert
                         if (inHoriz || inVert) && info.point != lastPoint {
                             lastPoint = info.point
                             lastMove = Date()
@@ -225,9 +227,21 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                             return
                         }
                     } else {
-                        // Universal: cancel on any significant drag
-                        let dragDistance = sqrt(pow(value.translation.width, 2) + pow(value.translation.height, 2))
-                        if dragDistance > 5 {
+                        // Universal: respect scroll directions when available, otherwise cancel on any significant drag
+                        let dx = abs(value.translation.width)
+                        let dy = abs(value.translation.height)
+                        
+                        let shouldCancel: Bool
+                        if inHoriz || inVert {
+                            // We detected scroll views - only cancel drags along those axes
+                            shouldCancel = (inHoriz && dx > 5) || (inVert && dy > 5)
+                        } else {
+                            // No scroll views detected - cancel on any significant movement for sheets/popovers
+                            let dragDistance = sqrt(pow(value.translation.width, 2) + pow(value.translation.height, 2))
+                            shouldCancel = dragDistance > 5
+                        }
+                        
+                        if shouldCancel {
                             cancelForScroll()
                             return
                         }
@@ -264,8 +278,10 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                                     setPressedTask?.cancel(); setPressedTask = nil
                                     flash = true
                                     Task { try? await Task.sleep(for: .milliseconds(150)); flash = false }
-                                    Task.detached {
-                                        await Haptics.play(haptic)
+                                    if let haptic {
+                                        Task.detached {
+                                            await Haptics.play(haptic)
+                                        }
                                     }
                                 }
                                 configuration.trigger()
@@ -285,8 +301,10 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                                 setPressedTask?.cancel(); setPressedTask = nil
                                 flash = true
                                 Task { try? await Task.sleep(for: .milliseconds(150)); flash = false }
-                                Task.detached {
-                                    await Haptics.play(haptic)
+                                if let haptic {
+                                    Task.detached {
+                                        await Haptics.play(haptic)
+                                    }
                                 }
                             }
                             // If task already completed, just trigger (haptic already played)
@@ -327,18 +345,22 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                                 flash = true
                                 Task { try? await Task.sleep(for: .milliseconds(150)); flash = false }
                                 
-                                Task.detached {
-                                    try? await Task.sleep(for: .seconds(0.1))
-                                    await Haptics.play(haptic)
+                                if let haptic {
+                                    Task.detached {
+                                        try? await Task.sleep(for: .seconds(0.1))
+                                        await Haptics.play(haptic)
+                                    }
                                 }
                             }
                         }
                     } else {
                         // Not in scroll view, immediate feedback
                         pressed = true
-                        Task.detached {
-                            try? await Task.sleep(for: .seconds(0.1))
-                            await Haptics.play(haptic)
+                        if let haptic {
+                            Task.detached {
+                                try? await Task.sleep(for: .seconds(0.1))
+                                await Haptics.play(haptic)
+                            }
                         }
                     }
                 } else {
@@ -360,9 +382,11 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                             flash = true
                             Task { try? await Task.sleep(for: .milliseconds(150)); flash = false }
                             
-                            Task.detached {
-                                try? await Task.sleep(for: .seconds(0.1))
-                                await Haptics.play(haptic)
+                            if let haptic {
+                                Task.detached {
+                                    try? await Task.sleep(for: .seconds(0.1))
+                                    await Haptics.play(haptic)
+                                }
                             }
                         }
                     }
@@ -389,4 +413,4 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
             }
         }
     }
-} 
+}

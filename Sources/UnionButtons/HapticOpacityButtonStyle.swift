@@ -92,7 +92,6 @@ public struct HapticOpacityButtonStyle: PrimitiveButtonStyle {
     }
 }
 
-// MARK: Sugar
 extension PrimitiveButtonStyle where Self == HapticOpacityButtonStyle {
     /// Opacity-based button with universal movement detection and haptic feedback.
     ///
@@ -107,6 +106,37 @@ extension PrimitiveButtonStyle where Self == HapticOpacityButtonStyle {
     /// .buttonStyle(.hapticOpacity)
     /// ```
     public static var hapticOpacity: Self { .init() }
+    
+    /// Opacity-based button with custom haptic feedback.
+    ///
+    /// Fades to 50% opacity when pressed and provides the specified haptic feedback. Works with 
+    /// scroll views, sheets, and any moving container with automatic cancellation during movement.
+    ///
+    /// - Parameter haptic: The haptic feedback to play when the button is pressed.
+    ///
+    /// ## Usage Examples
+    /// ```swift
+    /// // Success haptic for positive actions
+    /// Button("Save") {
+    ///     // Save action
+    /// }
+    /// .buttonStyle(.hapticOpacity(.success))
+    ///
+    /// // Warning haptic for destructive actions  
+    /// Button("Delete") {
+    ///     // Delete action
+    /// }
+    /// .buttonStyle(.hapticOpacity(.warning))
+    ///
+    /// // Soft impact for gentle interactions
+    /// Button("Like") {
+    ///     // Like action
+    /// }
+    /// .buttonStyle(.hapticOpacity(.impact(flexibility: .soft)))
+    /// ```
+    public static func hapticOpacity(_ haptic: SensoryFeedback) -> Self { 
+        .init(haptic) 
+    }
     
     /// Legacy opacity button with scroll view only detection.
     ///

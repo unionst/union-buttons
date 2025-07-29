@@ -1,118 +1,106 @@
-import SwiftUI
-import UnionHaptics
+//
+//  HapticButtonStyle.swift
+//  union-buttons
+//
+//  Created by Ben Sage on 6/25/25.
+//
 
+import SwiftUI
+
+/// Button style that provides haptic feedback only - no visual changes.
+///
+/// Built on top of `UnionButtonStyle` with universal movement detection. The button provides
+/// haptic feedback on press but no visual transformation. Useful when you want haptic feedback
+/// without changing the button's appearance.
+///
+/// ## Basic Usage
+/// ```swift
+/// Button("Invisible Press") {
+///     print("Pressed!")
+/// }
+/// .buttonStyle(.haptic)
+/// ```
+///
+/// ## Custom Haptic
+/// ```swift
+/// Button("Success Sound") {
+///     // Save action
+/// }
+/// .buttonStyle(HapticButtonStyle(.success))
+/// ```
+///
+/// ## Silent Button
+/// ```swift
+/// Button("Silent") {
+///     // Action
+/// }
+/// .buttonStyle(HapticButtonStyle(nil))
+/// ```
 @available(iOS 17, *)
 public struct HapticButtonStyle: PrimitiveButtonStyle {
-    public enum Priority { case high, regular }
+    private let haptic: SensoryFeedback?
 
-    let priority: Priority
-    let scrollView: Axis?
-    let animationDuration: CGFloat
-
-    public init(
-        priority: Priority = .regular,
-        scrollView: Axis? = nil,
-        animationDuration: CGFloat = 0.15
-    ) {
-        self.priority = priority
-        self.scrollView = scrollView
-        self.animationDuration = animationDuration
+    // MARK: Init
+    
+    /// Creates a haptic-only button style.
+    ///
+    /// - Parameter haptic: The haptic feedback to play when pressed. Defaults to `.impact(flexibility: .rigid)`. Pass `nil` to disable haptics.
+    public init(_ haptic: SensoryFeedback? = .impact(flexibility: .rigid)) {
+        self.haptic = haptic
     }
 
     public func makeBody(configuration: Configuration) -> some View {
-        InternalView(configuration: configuration, style: self)
-    }
-
-    private struct InternalView: View {
-        let configuration: PrimitiveButtonStyleConfiguration
-        let style: HapticButtonStyle
-
-        @State private var isPressed = false
-        @State private var lastTap: Date?
-        @State private var scrollCancelled = false
-        @State private var setPressedTask: Task<Void, Never>?
-
-        var body: some View {
-            configuration.label
-                .simultaneousGesture(dragGesture, isEnabled: style.priority == .regular)
-                .highPriorityGesture(dragGesture, isEnabled: style.priority == .high)
-                .onChange(of: isPressed) { _, newValue in handlePressed(newValue) }
+        UnionButtonStyle(haptic) { label, _ in
+            label
         }
-
-        private var dragGesture: some Gesture {
-            DragGesture(minimumDistance: 0)
-                .onChanged { value in
-                    guard !scrollCancelled else { return }
-                    if let axis = style.scrollView {
-                        switch axis {
-                        case .horizontal where abs(value.translation.width) > 5,
-                             .vertical   where abs(value.translation.height) > 5:
-                            setPressed(false)
-                            scrollCancelled = true
-                            return
-                        default: break
-                        }
-                    }
-                    if abs(value.translation.height) > 150 {
-                        setPressed(false)
-                    } else {
-                        setPressed(true)
-                    }
-                }
-                .onEnded { value in
-                    guard !scrollCancelled else {
-                        scrollCancelled = false
-                        Task { try? await Task.sleep(for: .seconds(1.0 / 60.0)); isPressed = false }
-                        return
-                    }
-                    if style.scrollView != nil {
-                        if abs(value.translation.height) < 5 {
-                            isPressed = true
-                            setPressedTask?.cancel()
-                            setPressedTask = nil
-                            configuration.trigger()
-                        }
-                        Task { try? await Task.sleep(for: .seconds(1.0 / 60.0)); isPressed = false }
-                    } else {
-                        if isPressed { configuration.trigger() }
-                        isPressed = false
-                    }
-                }
-        }
-
-        private func setPressed(_ pressing: Bool) {
-            if pressing {
-                guard setPressedTask == nil, !isPressed else { return }
-                setPressedTask = Task {
-                    let delay = style.scrollView == nil ? 0.0 : 0.2
-                    try? await Task.sleep(for: .seconds(delay))
-                    guard !Task.isCancelled else { return }
-                    isPressed = true
-                    setPressedTask?.cancel()
-                    setPressedTask = nil
-                }
-            } else {
-                setPressedTask?.cancel()
-                setPressedTask = nil
-                isPressed = false
-            }
-        }
-
-        private func handlePressed(_ pressed: Bool) {
-            if pressed {
-                lastTap = Date()
-                Task.detached(priority: .high) {
-                    try await Task.sleep(for: .seconds(0.1))
-                    await Haptics.rigid()
-                }
-            }
-        }
+        .makeBody(configuration: configuration)
     }
 }
 
 extension PrimitiveButtonStyle where Self == HapticButtonStyle {
-    static var haptic: Self { .init() }
-    static func haptic(priority: HapticButtonStyle.Priority = .regular, scrollView: Axis? = nil) -> Self {
-        .init(priority: priority, scrollView: scrollView)
+    /// Button with haptic feedback only - no visual changes.
+    ///
+    /// Provides default impact haptic feedback on press but no visual transformation.
+    ///
+    /// ## Usage
+    /// ```swift
+    /// Button("Invisible Press") {
+    ///     print("Pressed!")
+    /// }
+    /// .buttonStyle(.haptic)
+    /// ```
+    public static var haptic: Self { .init() }
+    
+    /// Button with custom haptic feedback only - no visual changes.
+    ///
+    /// Provides the specified haptic feedback on press but no visual transformation.
+    ///
+    /// - Parameter haptic: The haptic feedback to play when pressed.
+    ///
+    /// ## Usage Examples
+    /// ```swift
+    /// // Success haptic with no visual change
+    /// Button("Save") {
+    ///     // Save action
+    /// }
+    /// .buttonStyle(.haptic(.success))
+    ///
+    /// // Silent button with no haptic or visual change
+    /// Button("Silent") {
+    ///     // Action
+    /// }
+    /// .buttonStyle(.haptic(nil))
+    /// ```
+    public static func haptic(_ haptic: SensoryFeedback?) -> Self {
+        .init(haptic)
     }
+}
+
+// MARK: - Preview
+
+#Preview {
+    Button("Haptic Test") {
+
+    }
+    .buttonStyle(.haptic)
 } 
