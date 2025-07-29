@@ -177,6 +177,9 @@ public struct ListButton<Label: View>: View {
                       : AnyShapeStyle(.clear)
                 )
         })
+        .onDisappear {
+            highlighted = false
+        }
     }
 
     private func highlight() {
