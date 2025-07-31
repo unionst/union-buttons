@@ -205,7 +205,7 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                     }
                 }
                 .contentShape(.rect)
-                .simultaneousGesture(drag)
+                .simultaneousGesture(drag, including: .gesture)
         }
 
         // MARK: Drag gesture
