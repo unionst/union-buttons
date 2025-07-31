@@ -15,7 +15,7 @@ extension CGPoint {
 }
 
 /// Core movement‑aware button style with universal parent movement detection.
-/// 
+///
 /// Works with scroll views, sheets, and any moving container. Provides a transform closure
 /// for complete customization of pressed state appearance.
 ///
@@ -53,7 +53,7 @@ extension CGPoint {
 @available(iOS 17, *)
 public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
     public typealias Transform = (PrimitiveButtonStyleConfiguration.Label, /* pressed */ Bool) -> Transformed
-    
+
     private let haptic: SensoryFeedback?
     private let grace: TimeInterval
     private let delay: Duration
@@ -61,7 +61,7 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
     private let transform: Transform
 
     // MARK: Init
-    
+
     /// Creates a new UnionButtonStyle with custom transform.
     ///
     /// - Parameters:
@@ -84,7 +84,7 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
     /// ## Example with No Haptics
     /// ```swift
     /// Button("Silent Button") {
-    ///     // Action  
+    ///     // Action
     /// }
     /// .buttonStyle(UnionButtonStyle(nil) { label, isPressed in
     ///     label.brightness(isPressed ? -0.3 : 0)
@@ -126,7 +126,7 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
         @State private var lastGlobalFrame = CGRect.zero
         @State private var lastLocalFrame = CGRect.zero
         @State private var lastMove = Date.distantPast
-        
+
         // Legacy scroll view detection (scrollViewOnly = true)
         @State private var inHoriz = false
         @State private var inVert = false
@@ -139,7 +139,7 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
         @State private var setPressedTask: Task<Void, Never>?
         @State private var buttonBounds = CGRect.zero
 
-        private struct Info: Equatable { 
+        private struct Info: Equatable {
             var globalFrame: CGRect
             var localFrame: CGRect
             var point: CGPoint
@@ -172,7 +172,7 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                     // Always track scroll view presence for both modes
                     inHoriz = info.inHoriz
                     inVert = info.inVert
-                    
+
                     if scrollViewOnly {
                         // Legacy scroll view detection
                         if (inHoriz || inVert) && info.point != lastPoint {
@@ -187,11 +187,11 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                         // Universal movement detection (default)
                         let globalMoved = info.globalFrame != lastGlobalFrame
                         let localMoved = info.localFrame != lastLocalFrame
-                        
-                        // If global moved but local didn't (or they moved differently), 
+
+                        // If global moved but local didn't (or they moved differently),
                         // it suggests the whole view is being moved by a parent
-                        if globalMoved && (!localMoved || 
-                            (info.globalFrame.origin.distance(to: lastGlobalFrame.origin) > 
+                        if globalMoved && (!localMoved ||
+                            (info.globalFrame.origin.distance(to: lastGlobalFrame.origin) >
                              info.localFrame.origin.distance(to: lastLocalFrame.origin))) {
                             lastMove = Date()
                             setPressedTask?.cancel()
@@ -199,7 +199,7 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                             pressed = false
                             flash = false
                         }
-                        
+
                         lastGlobalFrame = info.globalFrame
                         lastLocalFrame = info.localFrame
                     }
@@ -213,10 +213,10 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
             DragGesture(minimumDistance: 0)
                 .onChanged { value in
                     guard !scrollCancelled else { return }
-                    
+
                     // Check if we're inside button bounds
                     let insideBounds = buttonBounds.contains(value.location)
-                    
+
                     // Check for movement-based cancellation
                     if scrollViewOnly {
                         // Legacy: only cancel if in scroll view and dragging along axis
@@ -230,7 +230,7 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                         // Universal: respect scroll directions when available, otherwise cancel on any significant drag
                         let dx = abs(value.translation.width)
                         let dy = abs(value.translation.height)
-                        
+
                         let shouldCancel: Bool
                         if inHoriz || inVert {
                             // We detected scroll views - only cancel drags along those axes
@@ -240,13 +240,13 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                             let dragDistance = sqrt(pow(value.translation.width, 2) + pow(value.translation.height, 2))
                             shouldCancel = dragDistance > 5
                         }
-                        
+
                         if shouldCancel {
                             cancelForScroll()
                             return
                         }
                     }
-                    
+
                     // Set pressed state based on bounds
                     if insideBounds {
                         setPressed(true)
@@ -258,16 +258,16 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                         flash = false
                     }
                 }
-                .onEnded { value in 
-                    guard !scrollCancelled else { 
+                .onEnded { value in
+                    guard !scrollCancelled else {
                         resetAfterScrollCancel()
-                        return 
+                        return
                     }
-                    
+
                     let insideBounds = buttonBounds.contains(value.location)
                     let still = Date().timeIntervalSince(lastMove) > grace
                     let dragDistance = sqrt(pow(value.translation.width, 2) + pow(value.translation.height, 2))
-                    
+
                     if scrollViewOnly {
                         // Legacy behavior
                         if inHoriz || inVert {
@@ -309,13 +309,10 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                             }
                             // If task already completed, just trigger (haptic already played)
                             configuration.trigger()
+                        } else if pressed && insideBounds && still {
+                            configuration.trigger()
                         }
-                        
-                        // For simple non-moving contexts
-                        if pressed && insideBounds && still { 
-                            configuration.trigger() 
-                        }
-                        
+
                         Task { try? await Task.sleep(for: .seconds(1.0 / 60.0)); setPressed(false) }
                     }
                 }
@@ -325,7 +322,7 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
         private func setPressed(_ pressing: Bool) {
             if pressing {
                 guard setPressedTask == nil, !pressed else { return }
-                
+
                 if scrollViewOnly {
                     // Legacy behavior: only delay if in scroll view
                     if inHoriz || inVert {
@@ -339,12 +336,12 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                                     setPressedTask = nil
                                     return
                                 }
-                                
+
                                 pressed = true
                                 setPressedTask = nil
                                 flash = true
                                 Task { try? await Task.sleep(for: .milliseconds(150)); flash = false }
-                                
+
                                 if let haptic {
                                     Task.detached {
                                         try? await Task.sleep(for: .seconds(0.1))
@@ -376,12 +373,12 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                                 setPressedTask = nil
                                 return
                             }
-                            
+
                             pressed = true
                             setPressedTask = nil
                             flash = true
                             Task { try? await Task.sleep(for: .milliseconds(150)); flash = false }
-                            
+
                             if let haptic {
                                 Task.detached {
                                     try? await Task.sleep(for: .seconds(0.1))
@@ -397,20 +394,21 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                 pressed = false
             }
         }
-        
+
         private func cancelForScroll() {
             setPressedTask?.cancel(); setPressedTask = nil
             pressed = false; flash = false
             scrollCancelled = true
         }
-        
+
         private func resetAfterScrollCancel() {
             scrollCancelled = false
-            Task { 
+            Task {
                 try? await Task.sleep(for: .seconds(1.0 / 60.0))
                 pressed = false
-                flash = false 
+                flash = false
             }
         }
     }
 }
+
