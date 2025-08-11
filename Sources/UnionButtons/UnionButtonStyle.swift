@@ -41,7 +41,6 @@ extension CGPoint {
 /// }
 /// .buttonStyle(UnionButtonStyle(
 ///     .impact(flexibility: .soft),
-///     grace: 0.2,
 ///     delay: .milliseconds(150)
 /// ) { label, isPressed in
 ///     label
@@ -66,16 +65,18 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
     ///
     /// - Parameters:
     ///   - haptic: The haptic feedback to play when pressed. Defaults to `.impact(flexibility: .rigid)`. Pass `nil` to disable haptics.
+    ///   - delay: Time to wait before showing visual/haptic feedback during interaction. Defaults to `.milliseconds(100)`.
     ///   - scrollViewOnly: If `true`, uses legacy scroll view detection instead of universal movement detection. Defaults to `false`.
     ///   - transform: A closure that transforms the button label based on pressed state.
     ///
-    /// ## Example with Custom Haptics
+    /// ## Example with Custom Haptics and Delay
     /// ```swift
     /// Button("Gentle Tap") {
     ///     // Action
     /// }
     /// .buttonStyle(UnionButtonStyle(
-    ///     .impact(flexibility: .soft, intensity: 0.5)
+    ///     .impact(flexibility: .soft, intensity: 0.5),
+    ///     delay: .milliseconds(50)
     /// ) { label, isPressed in
     ///     label.opacity(isPressed ? 0.6 : 1.0)
     /// })
@@ -90,14 +91,27 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
     ///     label.brightness(isPressed ? -0.3 : 0)
     /// })
     /// ```
+    ///
+    /// ## Example with Custom Delay
+    /// ```swift
+    /// Button("Quick Response") {
+    ///     // Action
+    /// }
+    /// .buttonStyle(UnionButtonStyle(
+    ///     delay: .milliseconds(25)
+    /// ) { label, isPressed in
+    ///     label.scaleEffect(isPressed ? 0.95 : 1.0)
+    /// })
+    /// ```
     public init(
         _ haptic: SensoryFeedback? = .impact(flexibility: .rigid),
+        delay: Duration = .milliseconds(100),
         scrollViewOnly: Bool = false,
         @ViewBuilder transform: @escaping Transform
     ) {
         self.haptic = haptic
         self.grace = 0.15
-        self.delay = .milliseconds(100)
+        self.delay = delay
         self.scrollViewOnly = scrollViewOnly
         self.transform = transform
     }
@@ -106,8 +120,8 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
         Content(
             configuration: configuration,
             haptic: haptic,
-            grace: 0.15,
-            delay: .milliseconds(100),
+            grace: grace,
+            delay: delay,
             scrollViewOnly: scrollViewOnly,
             transform: transform
         )

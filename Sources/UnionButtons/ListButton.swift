@@ -180,6 +180,7 @@ public struct ListButton<Label: View>: View {
         .onDisappear {
             highlighted = false
         }
+        .gesture(DragGesture(), including: .gesture)
     }
 
     private func highlight() {

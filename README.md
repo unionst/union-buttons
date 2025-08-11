@@ -123,7 +123,7 @@ Button("No Feedback") { handleSilent() }
 
 ### UnionButtonStyle
 
-Core style with custom transform closures.
+Core style with custom transform closures and configurable delay.
 
 ```swift
 Button("Custom Effect") {
@@ -135,6 +135,37 @@ Button("Custom Effect") {
         .scaleEffect(isPressed ? 1.1 : 1.0)
         .saturation(isPressed ? 1.5 : 1.0)
         .animation(.spring(duration: 0.2), value: isPressed)
+})
+```
+
+#### Custom Delay
+
+Control how quickly the button responds to touch by adjusting the delay parameter:
+
+```swift
+// Quick response for immediate feedback
+Button("Quick Response") {
+    performQuickAction()
+}
+.buttonStyle(UnionButtonStyle(
+    delay: .milliseconds(25)
+) { label, isPressed in
+    label
+        .scaleEffect(isPressed ? 0.95 : 1.0)
+        .opacity(isPressed ? 0.8 : 1.0)
+})
+
+// Longer delay for preventing accidental touches
+Button("Careful Action") {
+    performSensitiveAction()
+}
+.buttonStyle(UnionButtonStyle(
+    .impact(flexibility: .rigid),
+    delay: .milliseconds(200)
+) { label, isPressed in
+    label
+        .scaleEffect(isPressed ? 0.9 : 1.0)
+        .brightness(isPressed ? -0.2 : 0)
 })
 ```
 
