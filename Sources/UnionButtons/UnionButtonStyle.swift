@@ -219,117 +219,137 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                     }
                 }
                 .contentShape(.rect)
-                .simultaneousGesture(drag, including: .gesture)
+                .applyDragGesture(drag: drag, simultaneousDrag: simultaneousDrag)
         }
-
-        // MARK: Drag gesture
-        private var drag: some Gesture {
-            DragGesture(minimumDistance: 0)
+        
+        // MARK: Drag gesture (iOS 18+)
+        private var drag: SimultaneousDragGesture {
+            SimultaneousDragGesture()
                 .onChanged { value in
-                    guard !scrollCancelled else { return }
-
-                    // Check if we're inside button bounds
-                    let insideBounds = buttonBounds.contains(value.location)
-
-                    // Check for movement-based cancellation
-                    if scrollViewOnly {
-                        // Legacy: only cancel if in scroll view and dragging along axis
-                        let dx = abs(value.translation.width)
-                        let dy = abs(value.translation.height)
-                        if (inHoriz && dx > 5) || (inVert && dy > 5) {
-                            cancelForScroll()
-                            return
-                        }
-                    } else {
-                        // Universal: respect scroll directions when available, otherwise cancel on any significant drag
-                        let dx = abs(value.translation.width)
-                        let dy = abs(value.translation.height)
-
-                        let shouldCancel: Bool
-                        if inHoriz || inVert {
-                            // We detected scroll views - only cancel drags along those axes
-                            shouldCancel = (inHoriz && dx > 5) || (inVert && dy > 5)
-                        } else {
-                            // No scroll views detected - cancel on any significant movement for sheets/popovers
-                            let dragDistance = sqrt(pow(value.translation.width, 2) + pow(value.translation.height, 2))
-                            shouldCancel = dragDistance > 5
-                        }
-
-                        if shouldCancel {
-                            cancelForScroll()
-                            return
-                        }
-                    }
-
-                    // Set pressed state based on bounds
-                    if insideBounds {
-                        setPressed(true)
-                    } else {
-                        // Outside bounds - cancel any pending press and un-highlight
-                        setPressedTask?.cancel()
-                        setPressedTask = nil
-                        pressed = false
-                        flash = false
-                    }
+                    handleDragChanged(location: value.location, translation: value.translation)
                 }
                 .onEnded { value in
-                    guard !scrollCancelled else {
-                        resetAfterScrollCancel()
-                        return
-                    }
-
-                    let insideBounds = buttonBounds.contains(value.location)
-                    let still = Date().timeIntervalSince(lastMove) > grace
-                    let dragDistance = sqrt(pow(value.translation.width, 2) + pow(value.translation.height, 2))
-
-                    if scrollViewOnly {
-                        // Legacy behavior
-                        if inHoriz || inVert {
-                            if dragDistance < 5 && still && insideBounds {
-                                // If task is still pending, this is a quick tap - trigger immediately with haptic
-                                if setPressedTask != nil {
-                                    pressed = true
-                                    setPressedTask?.cancel(); setPressedTask = nil
-                                    flash = true
-                                    Task { try? await Task.sleep(for: .milliseconds(150)); flash = false }
-                                    if let haptic {
-                                        Task.detached {
-                                            await Haptics.play(haptic)
-                                        }
-                                    }
-                                }
-                                configuration.trigger()
-                            }
-                            Task { try? await Task.sleep(for: .seconds(1.0 / 60.0)); setPressed(false) }
-                        } else {
-                            if pressed && insideBounds { configuration.trigger() }
-                            setPressed(false)
-                        }
-                    } else {
-                        // Universal behavior
-                        // For small drags that end inside bounds and view hasn't been moving
-                        if dragDistance < 5 && still && insideBounds {
-                            // If task is still pending, this is a quick tap - trigger immediately with haptic
-                            if setPressedTask != nil {
-                                pressed = true
-                                setPressedTask?.cancel(); setPressedTask = nil
-                                flash = true
-                                Task { try? await Task.sleep(for: .milliseconds(150)); flash = false }
-                                if let haptic {
-                                    Task.detached {
-                                        await Haptics.play(haptic)
-                                    }
-                                }
-                            }
-                            // If task already completed, just trigger (haptic already played)
-                            configuration.trigger()
-                        } else if pressed && insideBounds && still {
-                            configuration.trigger()
-                        }
-
-                        Task { try? await Task.sleep(for: .seconds(1.0 / 60.0)); setPressed(false) }
-                    }
+                    handleDragEnded(location: value.location, translation: value.translation)
                 }
+        }
+        
+        // MARK: Fallback drag gesture (iOS 17)
+        private var simultaneousDrag: some Gesture {
+            DragGesture(minimumDistance: 0)
+                .onChanged { value in
+                    handleDragChanged(location: value.location, translation: value.translation)
+                }
+                .onEnded { value in
+                    handleDragEnded(location: value.location, translation: value.translation)
+                }
+        }
+        
+        // MARK: Shared drag handlers
+        private func handleDragChanged(location: CGPoint, translation: CGSize) {
+            guard !scrollCancelled else { return }
+
+            // Check if we're inside button bounds
+            let insideBounds = buttonBounds.contains(location)
+
+            // Check for movement-based cancellation
+            if scrollViewOnly {
+                // Legacy: only cancel if in scroll view and dragging along axis
+                let dx = abs(translation.width)
+                let dy = abs(translation.height)
+                if (inHoriz && dx > 5) || (inVert && dy > 5) {
+                    cancelForScroll()
+                    return
+                }
+            } else {
+                // Universal: respect scroll directions when available, otherwise cancel on any significant drag
+                let dx = abs(translation.width)
+                let dy = abs(translation.height)
+
+                let shouldCancel: Bool
+                if inHoriz || inVert {
+                    // We detected scroll views - only cancel drags along those axes
+                    shouldCancel = (inHoriz && dx > 5) || (inVert && dy > 5)
+                } else {
+                    // No scroll views detected - cancel on any significant movement for sheets/popovers
+                    let dragDistance = sqrt(pow(translation.width, 2) + pow(translation.height, 2))
+                    shouldCancel = dragDistance > 5
+                }
+
+                if shouldCancel {
+                    cancelForScroll()
+                    return
+                }
+            }
+
+            // Set pressed state based on bounds
+            if insideBounds {
+                setPressed(true)
+            } else {
+                // Outside bounds - cancel any pending press and un-highlight
+                setPressedTask?.cancel()
+                setPressedTask = nil
+                pressed = false
+                flash = false
+            }
+        }
+        
+        private func handleDragEnded(location: CGPoint, translation: CGSize) {
+            guard !scrollCancelled else {
+                resetAfterScrollCancel()
+                return
+            }
+            
+            let insideBounds = buttonBounds.contains(location)
+            let still = Date().timeIntervalSince(lastMove) > grace
+            let dragDistance = sqrt(pow(translation.width, 2) + pow(translation.height, 2))
+            
+            if scrollViewOnly {
+                // Legacy behavior
+                if inHoriz || inVert {
+                    if dragDistance < 5 && still && insideBounds {
+                        // If task is still pending, this is a quick tap - trigger immediately with haptic
+                        if setPressedTask != nil {
+                            pressed = true
+                            setPressedTask?.cancel(); setPressedTask = nil
+                            flash = true
+                            Task { try? await Task.sleep(for: .milliseconds(150)); flash = false }
+                            if let haptic {
+                                Task.detached {
+                                    await Haptics.play(haptic)
+                                }
+                            }
+                        }
+                        configuration.trigger()
+                    }
+                    Task { try? await Task.sleep(for: .seconds(1.0 / 60.0)); setPressed(false) }
+                } else {
+                    if pressed && insideBounds { configuration.trigger() }
+                    setPressed(false)
+                }
+            } else {
+                // Universal behavior
+                // For small drags that end inside bounds and view hasn't been moving
+                if dragDistance < 5 && still && insideBounds {
+                    // If task is still pending, this is a quick tap - trigger immediately with haptic
+                    if setPressedTask != nil {
+                        pressed = true
+                        setPressedTask?.cancel(); setPressedTask = nil
+                        flash = true
+                        Task { try? await Task.sleep(for: .milliseconds(150)); flash = false }
+                        if let haptic {
+                            Task.detached {
+                                await Haptics.play(haptic)
+                            }
+                        }
+                    }
+                    // If task already completed, just trigger (haptic already played)
+                    configuration.trigger()
+                } else if pressed && insideBounds && still {
+                    configuration.trigger()
+                }
+                
+                Task { try? await Task.sleep(for: .seconds(1.0 / 60.0)); setPressed(false) }
+            }
         }
 
         // MARK: Interaction lifecycle
