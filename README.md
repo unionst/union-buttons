@@ -169,6 +169,36 @@ Button("Careful Action") {
 })
 ```
 
+#### Custom Haptic Delay
+
+Control the timing of haptic feedback independently from visual feedback:
+
+```swift
+// Instant haptic feedback
+Button("Instant Haptic") {
+    performAction()
+}
+.buttonStyle(UnionButtonStyle(
+    hapticDelay: .zero
+) { label, isPressed in
+    label
+        .scaleEffect(isPressed ? 0.95 : 1.0)
+})
+
+// Delayed haptic for specific use cases
+Button("Delayed Haptic") {
+    performSensitiveAction()
+}
+.buttonStyle(UnionButtonStyle(
+    .impact(flexibility: .soft),
+    delay: .milliseconds(50),
+    hapticDelay: .milliseconds(200)
+) { label, isPressed in
+    label
+        .opacity(isPressed ? 0.7 : 1.0)
+})
+```
+
 ### ListButton
 
 Component for list interfaces with persistent highlight feedback.
