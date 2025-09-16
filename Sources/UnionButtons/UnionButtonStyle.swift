@@ -74,12 +74,12 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
     /// Button("Gentle Tap") {
     ///     // Action
     /// }
-    /// .buttonStyle(UnionButtonStyle(
-    ///     .impact(flexibility: .soft, intensity: 0.5),
-    ///     delay: .milliseconds(50)
-    /// ) { label, isPressed in
-    ///     label.opacity(isPressed ? 0.6 : 1.0)
-    /// })
+/// .buttonStyle(UnionButtonStyle(
+///     .impact(flexibility: .soft, intensity: 0.5),
+///     delay: .milliseconds(50)
+/// ) { label, isPressed in
+///     label.opacity(isPressed ? 0.6 : 1.0)
+/// })
     /// ```
     ///
     /// ## Example with No Haptics
@@ -87,9 +87,9 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
     /// Button("Silent Button") {
     ///     // Action
     /// }
-    /// .buttonStyle(UnionButtonStyle(nil) { label, isPressed in
-    ///     label.brightness(isPressed ? -0.3 : 0)
-    /// })
+/// .buttonStyle(UnionButtonStyle(nil) { label, isPressed in
+///     label.brightness(isPressed ? -0.3 : 0)
+/// })
     /// ```
     ///
     /// ## Example with Custom Delay
@@ -97,11 +97,11 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
     /// Button("Quick Response") {
     ///     // Action
     /// }
-    /// .buttonStyle(UnionButtonStyle(
-    ///     delay: .milliseconds(25)
-    /// ) { label, isPressed in
-    ///     label.scaleEffect(isPressed ? 0.95 : 1.0)
-    /// })
+/// .buttonStyle(UnionButtonStyle(
+///     delay: .milliseconds(25)
+/// ) { label, isPressed in
+///     label.scaleEffect(isPressed ? 0.95 : 1.0)
+/// })
     /// ```
     public init(
         _ haptic: SensoryFeedback? = .impact(flexibility: .rigid),
@@ -135,6 +135,8 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
         let delay: Duration
         let scrollViewOnly: Bool
         let transform: Transform
+        
+        @Environment(\.isEnabled) private var isEnabled
 
         // Universal movement detection (default)
         @State private var lastGlobalFrame = CGRect.zero
@@ -246,7 +248,7 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
         
         // MARK: Shared drag handlers
         private func handleDragChanged(location: CGPoint, translation: CGSize) {
-            guard !scrollCancelled else { return }
+            guard isEnabled, !scrollCancelled else { return }
 
             // Check if we're inside button bounds
             let insideBounds = buttonBounds.contains(location)
@@ -294,6 +296,7 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
         }
         
         private func handleDragEnded(location: CGPoint, translation: CGSize) {
+            guard isEnabled else { return }
             guard !scrollCancelled else {
                 resetAfterScrollCancel()
                 return
@@ -354,6 +357,7 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
 
         // MARK: Interaction lifecycle
         private func setPressed(_ pressing: Bool) {
+            guard isEnabled else { return }
             if pressing {
                 guard setPressedTask == nil, !pressed else { return }
 
