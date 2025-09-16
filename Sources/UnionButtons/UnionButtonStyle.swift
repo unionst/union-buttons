@@ -56,7 +56,6 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
     private let haptic: SensoryFeedback?
     private let grace: TimeInterval
     private let delay: Duration
-    private let hapticDelay: Duration
     private let scrollViewOnly: Bool
     private let transform: Transform
 
@@ -67,7 +66,6 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
     /// - Parameters:
     ///   - haptic: The haptic feedback to play when pressed. Defaults to `.impact(flexibility: .rigid)`. Pass `nil` to disable haptics.
     ///   - delay: Time to wait before showing visual/haptic feedback during interaction. Defaults to `.milliseconds(100)`.
-    ///   - hapticDelay: Time to wait before playing haptic feedback after press is confirmed. Defaults to `.seconds(0.1)`.
     ///   - scrollViewOnly: If `true`, uses legacy scroll view detection instead of universal movement detection. Defaults to `false`.
     ///   - transform: A closure that transforms the button label based on pressed state.
     ///
@@ -108,11 +106,11 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
     ///
     /// ## Example with Custom Haptic Delay
     /// ```swift
-    /// Button("Instant Haptic") {
+    /// Button("Quick Response") {
     ///     // Action
     /// }
     /// .buttonStyle(UnionButtonStyle(
-    ///     hapticDelay: .zero
+    ///     delay: .milliseconds(25)
     /// ) { label, isPressed in
     ///     label.scaleEffect(isPressed ? 0.95 : 1.0)
     /// })
@@ -120,14 +118,12 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
     public init(
         _ haptic: SensoryFeedback? = .impact(flexibility: .rigid),
         delay: Duration = .milliseconds(100),
-        hapticDelay: Duration = .milliseconds(100),
         scrollViewOnly: Bool = false,
         @ViewBuilder transform: @escaping Transform
     ) {
         self.haptic = haptic
         self.grace = 0.15
         self.delay = delay
-        self.hapticDelay = hapticDelay
         self.scrollViewOnly = scrollViewOnly
         self.transform = transform
     }
@@ -138,7 +134,6 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
             haptic: haptic,
             grace: grace,
             delay: delay,
-            hapticDelay: hapticDelay,
             scrollViewOnly: scrollViewOnly,
             transform: transform
         )
@@ -150,7 +145,6 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
         let haptic: SensoryFeedback?
         let grace: TimeInterval
         let delay: Duration
-        let hapticDelay: Duration
         let scrollViewOnly: Bool
         let transform: Transform
         
@@ -400,7 +394,6 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
 
                                 if let haptic {
                                     Task.detached {
-                                        try? await Task.sleep(for: hapticDelay)
                                         await Haptics.play(haptic)
                                     }
                                 }
@@ -411,7 +404,6 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                         pressed = true
                         if let haptic {
                             Task.detached {
-                                try? await Task.sleep(for: hapticDelay)
                                 await Haptics.play(haptic)
                             }
                         }
@@ -437,7 +429,7 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
 
                             if let haptic {
                                 Task.detached {
-                                    try? await Task.sleep(for: hapticDelay)
+                                    try? await Task.sleep(for: .seconds(0.1))
                                     await Haptics.play(haptic)
                                 }
                             }

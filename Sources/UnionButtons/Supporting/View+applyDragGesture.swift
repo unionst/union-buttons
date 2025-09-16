@@ -10,11 +10,8 @@ import SwiftUI
 extension View {
     @ViewBuilder
     func applyDragGesture(drag: SimultaneousDragGesture, simultaneousDrag: some Gesture) -> some View {
-        if #available(iOS 18.0, *) {
-            // Try to force attachment by wrapping in a container
-            self
-                .background(Color.clear)
-                .gesture(drag)
+        if #available(iOS 26.0, *) {
+            self.gesture(drag)
         } else {
             self.simultaneousGesture(simultaneousDrag, including: .gesture)
         }
