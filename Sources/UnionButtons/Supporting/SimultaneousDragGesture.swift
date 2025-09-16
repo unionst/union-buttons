@@ -8,16 +8,16 @@
 import SwiftUI
 
 struct SimultaneousDragGesture: UIGestureRecognizerRepresentable {
-    public struct Value : Equatable, Sendable {
-        public var time: Date
-        public var location: CGPoint
-        public var startLocation: CGPoint
+    struct Value : Equatable, Sendable {
+        var time: Date
+        var location: CGPoint
+        var startLocation: CGPoint
 
-        public var translation: CGSize {
+        var translation: CGSize {
             CGSize(width: location.x - startLocation.x, height: location.y - startLocation.y)
         }
         
-        public static func == (a: SimultaneousDragGesture.Value, b: SimultaneousDragGesture.Value) -> Bool {
+        static func == (a: SimultaneousDragGesture.Value, b: SimultaneousDragGesture.Value) -> Bool {
             a.time == b.time && a.location == b.location && a.startLocation == b.startLocation
         }
     }
@@ -30,41 +30,44 @@ struct SimultaneousDragGesture: UIGestureRecognizerRepresentable {
         let dragGesture = UILongPressGestureRecognizer()
         
         dragGesture.minimumPressDuration = 0.0
-        dragGesture.allowableMovement = CGFloat.infinity
+        dragGesture.allowableMovement = CGFloat.greatestFiniteMagnitude
         dragGesture.delegate = context.coordinator
         
         return dragGesture
     }
     
     func handleUIGestureRecognizerAction(_ gestureRecognizer: UILongPressGestureRecognizer, context: Context) {
-        let location = context.converter.location(in: .local)
-        let time = Date()
-        
         switch gestureRecognizer.state {
         case .began:
-            context.coordinator.start = location
+            context.coordinator.start = context.converter.location(in: .local)
             onBegan?()
-            onChanged?(Value(time: time, location: location, startLocation: context.coordinator.start ?? location))
+            onChanged?(value(from: context))
         case .changed:
-            onChanged?(Value(time: time, location: location, startLocation: context.coordinator.start ?? location))
+            onChanged?(value(from: context))
         case .ended, .cancelled:
-            onEnded?(Value(time: time, location: location, startLocation: context.coordinator.start ?? location))
+            onEnded?(value(from: context))
             context.coordinator.reset()
         default:
             break
         }
     }
-    
+
+    func value(from context: Context) -> Value {
+        let location = context.converter.location(in: .local)
+        let start = context.coordinator.start ?? location
+        let time = Date()
+
+        return .init(time: time, location: location, startLocation: start)
+    }
+
     func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator {
-        Coordinator()
+        .init()
     }
     
     class Coordinator: NSObject, UIGestureRecognizerDelegate {
         var start: CGPoint?
         func reset() { start = nil }
         
-        // This allows the drag gesture to be simultaenous with the gestures of its containing view
-        // (i.e scroll view)
         func gestureRecognizer(
             _ gestureRecognizer: UIGestureRecognizer,
             shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
@@ -75,25 +78,24 @@ struct SimultaneousDragGesture: UIGestureRecognizerRepresentable {
 }
 
 extension SimultaneousDragGesture {
-    @MainActor
-    @preconcurrency
-    public func onBegan(perform action: @escaping () -> Void) -> Self {
+
+    @MainActor @preconcurrency func onBegan(perform action: @escaping () -> Void) -> Self {
         var mutableSelf = self
         mutableSelf.onBegan = action
         return mutableSelf
     }
     
-    @MainActor
-    @preconcurrency
-    public func onChanged(perform action: @escaping (SimultaneousDragGesture.Value) -> Void) -> Self {
+    @MainActor @preconcurrency func onChanged(
+        perform action: @escaping (SimultaneousDragGesture.Value) -> Void
+    ) -> Self {
         var mutableSelf = self
         mutableSelf.onChanged = action
         return mutableSelf
     }
     
-    @MainActor
-    @preconcurrency
-    func onEnded(perform action: @escaping (SimultaneousDragGesture.Value) -> Void) -> Self {
+    @MainActor @preconcurrency func onEnded(
+        perform action: @escaping (SimultaneousDragGesture.Value) -> Void
+    ) -> Self {
         var mutableSelf = self
         mutableSelf.onEnded = action
         return mutableSelf

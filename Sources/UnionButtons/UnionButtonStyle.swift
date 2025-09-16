@@ -8,12 +8,6 @@
 import SwiftUI
 import UnionHaptics
 
-extension CGPoint {
-    func distance(to point: CGPoint) -> CGFloat {
-        sqrt(pow(x - point.x, 2) + pow(y - point.y, 2))
-    }
-}
-
 /// Core movement‑aware button style with universal parent movement detection.
 ///
 /// Works with scroll views, sheets, and any moving container. Provides a transform closure
@@ -236,7 +230,7 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                 .applyDragGesture(drag: drag, simultaneousDrag: simultaneousDrag)
         }
         
-        // MARK: Drag gesture (iOS 18+)
+        // MARK: Drag gesture (iOS 26+)
         private var drag: SimultaneousDragGesture {
             SimultaneousDragGesture()
                 .onChanged { value in
@@ -247,7 +241,7 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                 }
         }
         
-        // MARK: Fallback drag gesture (iOS 17)
+        // MARK: Fallback drag gesture (iOS 18)
         private var simultaneousDrag: some Gesture {
             DragGesture(minimumDistance: 0)
                 .onChanged { value in
