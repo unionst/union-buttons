@@ -302,7 +302,6 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
         }
         
         private func handleDragEnded(location: CGPoint, translation: CGSize) {
-            guard isEnabled else { return }
             guard !scrollCancelled else {
                 resetAfterScrollCancel()
                 return
@@ -316,13 +315,20 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                 // Legacy behavior
                 if inHoriz || inVert {
                     if dragDistance < 5 && still && insideBounds {
-                        guard isEnabled else { setPressed(false); return }
+                        guard isEnabled else { 
+                            setPressed(false)
+                            return 
+                        }
                         // If task is still pending, this is a quick tap - trigger immediately with haptic
                         if setPressedTask != nil {
                             pressed = true
-                            setPressedTask?.cancel(); setPressedTask = nil
+                            setPressedTask?.cancel()
+                            setPressedTask = nil
                             flash = true
-                            Task { try? await Task.sleep(for: .milliseconds(150)); flash = false }
+                            Task { 
+                                try? await Task.sleep(for: .milliseconds(150))
+                                flash = false 
+                            }
                             if let haptic {
                                 Task.detached {
                                     await Haptics.play(haptic)
@@ -331,10 +337,16 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                         }
                         configuration.trigger()
                     }
-                    Task { try? await Task.sleep(for: .seconds(1.0 / 60.0)); setPressed(false) }
+                    Task { 
+                        try? await Task.sleep(for: .seconds(1.0 / 60.0))
+                        setPressed(false) 
+                    }
                 } else {
                     if pressed && insideBounds { 
-                        guard isEnabled else { setPressed(false); return }
+                        guard isEnabled else { 
+                            setPressed(false)
+                            return 
+                        }
                         configuration.trigger() 
                     }
                     setPressed(false)
@@ -343,13 +355,20 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                 // Universal behavior
                 // For small drags that end inside bounds and view hasn't been moving
                 if dragDistance < 5 && still && insideBounds {
-                    guard isEnabled else { setPressed(false); return }
+                    guard isEnabled else { 
+                        setPressed(false)
+                        return 
+                    }
                     // If task is still pending, this is a quick tap - trigger immediately with haptic
                     if setPressedTask != nil {
                         pressed = true
-                        setPressedTask?.cancel(); setPressedTask = nil
+                        setPressedTask?.cancel()
+            setPressedTask = nil
                         flash = true
-                        Task { try? await Task.sleep(for: .milliseconds(150)); flash = false }
+                        Task { 
+                            try? await Task.sleep(for: .milliseconds(150))
+                            flash = false 
+                        }
                         if let haptic {
                             guard isEnabled else { return }
                             Task.detached {
@@ -360,65 +379,43 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                     // If task already completed, just trigger (haptic already played)
                     configuration.trigger()
                 } else if pressed && insideBounds && still {
-                    guard isEnabled else { setPressed(false); return }
+                    guard isEnabled else { 
+                        setPressed(false)
+                        return 
+                    }
                     configuration.trigger()
                 }
                 
-                Task { try? await Task.sleep(for: .seconds(1.0 / 60.0)); setPressed(false) }
+                Task { 
+                    try? await Task.sleep(for: .seconds(1.0 / 60.0))
+                    setPressed(false) 
+                }
             }
         }
 
         // MARK: Interaction lifecycle
         private func setPressed(_ pressing: Bool) {
+            // Allow unpressing even when disabled to fix stuck state
+            if !pressing {
+                setPressedTask?.cancel()
+                setPressedTask = nil
+                pressed = false
+                return
+            }
+            
             guard isEnabled else { return }
-            if pressing {
-                guard setPressedTask == nil, !pressed else { return }
+            
+            // We already know pressing == true here, so no need for "if pressing"
+            guard setPressedTask == nil, !pressed else { return }
 
-                if scrollViewOnly {
-                    // Legacy behavior: only delay if in scroll view
-                    if inHoriz || inVert {
-                        setPressedTask = Task {
-                            let delayTime: TimeInterval = Double(delay.components.seconds) + Double(delay.components.attoseconds) / 1e18
-                            try? await Task.sleep(for: .seconds(delayTime))
-                            guard !Task.isCancelled else { return }
-                            await MainActor.run {
-                                let still = Date().timeIntervalSince(lastMove) > grace
-                                if !still {
-                                    setPressedTask = nil
-                                    return
-                                }
-
-                                pressed = true
-                                setPressedTask = nil
-                                flash = true
-                                Task { try? await Task.sleep(for: .milliseconds(150)); flash = false }
-
-                                if let haptic {
-                                    guard isEnabled else { return }
-                                    Task.detached {
-                                        await Haptics.play(haptic)
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        // Not in scroll view, immediate feedback
-                        pressed = true
-                        if let haptic {
-                            guard isEnabled else { return }
-                            Task.detached {
-                                await Haptics.play(haptic)
-                            }
-                        }
-                    }
-                } else {
-                    // Universal behavior: always delay to allow movement detection
+            if scrollViewOnly {
+                // Legacy behavior: only delay if in scroll view
+                if inHoriz || inVert {
                     setPressedTask = Task {
                         let delayTime: TimeInterval = Double(delay.components.seconds) + Double(delay.components.attoseconds) / 1e18
                         try? await Task.sleep(for: .seconds(delayTime))
                         guard !Task.isCancelled else { return }
                         await MainActor.run {
-                            // Check if movement was recent
                             let still = Date().timeIntervalSince(lastMove) > grace
                             if !still {
                                 setPressedTask = nil
@@ -428,28 +425,68 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                             pressed = true
                             setPressedTask = nil
                             flash = true
-                            Task { try? await Task.sleep(for: .milliseconds(150)); flash = false }
+                            Task { 
+                                try? await Task.sleep(for: .milliseconds(150))
+                                flash = false 
+                            }
 
                             if let haptic {
                                 guard isEnabled else { return }
                                 Task.detached {
-                                    try? await Task.sleep(for: .seconds(0.1))
                                     await Haptics.play(haptic)
                                 }
                             }
                         }
                     }
+                } else {
+                    // Not in scroll view, immediate feedback
+                    pressed = true
+                    if let haptic {
+                        guard isEnabled else { return }
+                        Task.detached {
+                            await Haptics.play(haptic)
+                        }
+                    }
                 }
             } else {
-                setPressedTask?.cancel()
-                setPressedTask = nil
-                pressed = false
+                // Universal behavior: always delay to allow movement detection
+                setPressedTask = Task {
+                    let delayTime: TimeInterval = Double(delay.components.seconds) + Double(delay.components.attoseconds) / 1e18
+                    try? await Task.sleep(for: .seconds(delayTime))
+                    guard !Task.isCancelled else { return }
+                    await MainActor.run {
+                        // Check if movement was recent
+                        let still = Date().timeIntervalSince(lastMove) > grace
+                        if !still {
+                            setPressedTask = nil
+                            return
+                        }
+
+                        pressed = true
+                        setPressedTask = nil
+                        flash = true
+                        Task { 
+                            try? await Task.sleep(for: .milliseconds(150))
+                            flash = false 
+                        }
+
+                        if let haptic {
+                            guard isEnabled else { return }
+                            Task.detached {
+                                try? await Task.sleep(for: .seconds(0.1))
+                                await Haptics.play(haptic)
+                            }
+                        }
+                    }
+                }
             }
         }
 
         private func cancelForScroll() {
-            setPressedTask?.cancel(); setPressedTask = nil
-            pressed = false; flash = false
+            setPressedTask?.cancel()
+            setPressedTask = nil
+            pressed = false
+            flash = false
             scrollCancelled = true
         }
 
