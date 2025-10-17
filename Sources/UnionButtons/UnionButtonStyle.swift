@@ -228,7 +228,6 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                 }
                 .onChange(of: isEnabled) { oldValue, newValue in
                     if !newValue {
-                        print("🟣 [\(Date().timeIntervalSince1970)] isEnabled changed to false - cancelling pending Task")
                         setPressedTask?.cancel()
                         setPressedTask = nil
                         pressed = false
@@ -406,14 +405,12 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
         private func setPressed(_ pressing: Bool) {
             // Allow unpressing even when disabled to fix stuck state
             if !pressing {
-                print("🟣 [\(Date().timeIntervalSince1970)] setPressed(false) called")
                 setPressedTask?.cancel()
                 setPressedTask = nil
                 pressed = false
                 return
             }
             
-            print("🟣 [\(Date().timeIntervalSince1970)] setPressed(true) called - isEnabled: \(isEnabled)")
             guard isEnabled else { return }
             
             // We already know pressing == true here, so no need for "if pressing"
@@ -462,25 +459,17 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
             } else {
                 // Universal behavior: always delay to allow movement detection
                 setPressedTask = Task {
-                    print("🟣 [\(Date().timeIntervalSince1970)] Task created - starting delay")
                     let delayTime: TimeInterval = Double(delay.components.seconds) + Double(delay.components.attoseconds) / 1e18
                     try? await Task.sleep(for: .seconds(delayTime))
-                    guard !Task.isCancelled else { 
-                        print("🟣 [\(Date().timeIntervalSince1970)] Task cancelled")
-                        return 
-                    }
+                    guard !Task.isCancelled else { return }
                     await MainActor.run {
-                        print("🟣 [\(Date().timeIntervalSince1970)] Task fired after delay - isEnabled: \(isEnabled)")
-                        
                         // Check if movement was recent
                         let still = Date().timeIntervalSince(lastMove) > grace
                         if !still {
-                            print("🟣 [\(Date().timeIntervalSince1970)] Movement detected - cancelling")
                             setPressedTask = nil
                             return
                         }
 
-                        print("🟣 [\(Date().timeIntervalSince1970)] About to set pressed=true and play haptic")
                         pressed = true
                         setPressedTask = nil
                         flash = true
@@ -490,11 +479,7 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                         }
 
                         if let haptic {
-                            guard isEnabled else { 
-                                print("🟣 [\(Date().timeIntervalSince1970)] Haptic BLOCKED - isEnabled is false")
-                                return 
-                            }
-                            print("🟣 [\(Date().timeIntervalSince1970)] PLAYING HAPTIC")
+                            guard isEnabled else { return }
                             Task.detached {
                                 try? await Task.sleep(for: .seconds(0.1))
                                 await Haptics.play(haptic)
