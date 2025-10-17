@@ -1,3 +1,10 @@
+//
+//  View+AllowsSwipeToDismiss.swift
+//  union-buttons
+//
+//  Created by Ben Sage on 10/17/25.
+//
+
 import SwiftUI
 
 extension EnvironmentValues {
