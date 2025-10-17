@@ -5,8 +5,8 @@ extension EnvironmentValues {
 }
 
 extension View {
-    public func allowsSwipeToDismiss(_ allowed: Bool = true) -> some View {
-        environment(\.allowsSwipeToDismiss, allowed)
+    public func allowsSwipeToDismiss(_ allows: Bool = true) -> some View {
+        environment(\.allowsSwipeToDismiss, allows)
     }
 }
 
