@@ -143,6 +143,7 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
         let transform: Transform
         
         @Environment(\.isEnabled) private var isEnabled
+        @Environment(\.allowsSwipeToDismiss) private var allowsSwipeToDismiss
 
         // Universal movement detection (default)
         @State private var lastGlobalFrame = CGRect.zero
@@ -240,7 +241,7 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
         
         // MARK: Drag gesture (iOS 26+)
         private var drag: SimultaneousDragGesture {
-            SimultaneousDragGesture()
+            SimultaneousDragGesture(allowsSwipeToDismiss: allowsSwipeToDismiss)
                 .onChanged { value in
                     handleDragChanged(location: value.location, translation: value.translation)
                 }

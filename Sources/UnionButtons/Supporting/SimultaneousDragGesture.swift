@@ -22,6 +22,7 @@ struct SimultaneousDragGesture: UIGestureRecognizerRepresentable {
         }
     }
     
+    var allowsSwipeToDismiss: Bool = false
     var onBegan: (() -> Void)?
     var onChanged: ((Value) -> Void)?
     var onEnded: ((Value) -> Void)?
@@ -40,9 +41,28 @@ struct SimultaneousDragGesture: UIGestureRecognizerRepresentable {
         switch gestureRecognizer.state {
         case .began:
             context.coordinator.start = context.converter.location(in: .local)
+            context.coordinator.startTime = Date()
+            context.coordinator.hasCheckedSwipe = false
             onBegan?()
             onChanged?(value(from: context))
         case .changed:
+            if context.coordinator.allowsSwipeToDismiss && !context.coordinator.hasCheckedSwipe {
+                if let startTime = context.coordinator.startTime,
+                   Date().timeIntervalSince(startTime) < 0.1 {
+                    let val = value(from: context)
+                    let deltaY = val.translation.height
+                    let deltaX = abs(val.translation.width)
+                    
+                    if deltaY > 20 && deltaY > deltaX * 1.5 {
+                        gestureRecognizer.isEnabled = false
+                        gestureRecognizer.isEnabled = true
+                        context.coordinator.reset()
+                        return
+                    }
+                } else {
+                    context.coordinator.hasCheckedSwipe = true
+                }
+            }
             onChanged?(value(from: context))
         case .ended, .cancelled:
             onEnded?(value(from: context))
@@ -61,12 +81,25 @@ struct SimultaneousDragGesture: UIGestureRecognizerRepresentable {
     }
 
     func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator {
-        .init()
+        .init(allowsSwipeToDismiss: allowsSwipeToDismiss)
     }
     
     class Coordinator: NSObject, UIGestureRecognizerDelegate {
         var start: CGPoint?
-        func reset() { start = nil }
+        var allowsSwipeToDismiss: Bool
+        var startTime: Date?
+        var hasCheckedSwipe = false
+        
+        init(allowsSwipeToDismiss: Bool = false) {
+            self.allowsSwipeToDismiss = allowsSwipeToDismiss
+            super.init()
+        }
+        
+        func reset() {
+            start = nil
+            startTime = nil
+            hasCheckedSwipe = false
+        }
         
         func gestureRecognizer(
             _ gestureRecognizer: UIGestureRecognizer,

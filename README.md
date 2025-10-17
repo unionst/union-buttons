@@ -253,6 +253,64 @@ ScrollView {
 }
 ```
 
+## Pull-to-Dismiss Support
+
+When using buttons in fullScreenCover presentations, the gesture recognizer can block iOS's native pull-to-dismiss feature. Use the `allowsSwipeToDismiss()` modifier to enable smart gesture handling:
+
+```swift
+.fullScreenCover(item: $selectedItem) { item in
+    DetailView(item: item)
+        .allowsSwipeToDismiss()
+        .navigationTransition(.zoom(...))
+}
+```
+
+This makes buttons detect downward swipes within the first 100ms and cancel themselves, allowing pull-to-dismiss to work while preserving full button functionality.
+
+### When to Use
+
+- ✅ **Use on views presented with `.fullScreenCover`** that need pull-to-dismiss
+- ✅ **Use on scroll views** containing interactive buttons in dismissible contexts
+- ❌ **Don't use on regular NavigationStack pushed views** (no pull-to-dismiss needed)
+- ❌ **Don't use on modal sheets** (they have their own dismiss handling)
+
+### How It Works
+
+```swift
+struct DetailView: View {
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                Button("Action 1") { performAction1() }
+                    .buttonStyle(.hapticOpacity)
+                
+                Button("Action 2") { performAction2() }
+                    .buttonStyle(.bouncy)
+            }
+        }
+    }
+}
+
+struct ContentView: View {
+    @State private var showDetail = false
+    
+    var body: some View {
+        Button("Show Detail") { showDetail = true }
+            .fullScreenCover(isPresented: $showDetail) {
+                DetailView()
+                    .allowsSwipeToDismiss()
+            }
+    }
+}
+```
+
+The gesture monitors the first 100ms of touch:
+- **Downward swipe detected** (`deltaY > 20` and primarily vertical): Button cancels, pull-to-dismiss activates
+- **Horizontal or upward movement**: Button continues normally
+- **After 100ms**: No more cancellation checks, button fully active
+
 ## Requirements
 
 - iOS 17.0+
