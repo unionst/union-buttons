@@ -226,6 +226,15 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                         lastLocalFrame = info.localFrame
                     }
                 }
+                .onChange(of: isEnabled) { oldValue, newValue in
+                    if !newValue {
+                        print("🟣 [\(Date().timeIntervalSince1970)] isEnabled changed to false - cancelling pending Task")
+                        setPressedTask?.cancel()
+                        setPressedTask = nil
+                        pressed = false
+                        flash = false
+                    }
+                }
                 .contentShape(.rect)
                 .applyDragGesture(drag: drag, simultaneousDrag: simultaneousDrag)
         }
