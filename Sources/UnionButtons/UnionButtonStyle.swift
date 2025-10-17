@@ -316,6 +316,7 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                 // Legacy behavior
                 if inHoriz || inVert {
                     if dragDistance < 5 && still && insideBounds {
+                        guard isEnabled else { setPressed(false); return }
                         // If task is still pending, this is a quick tap - trigger immediately with haptic
                         if setPressedTask != nil {
                             pressed = true
@@ -332,13 +333,17 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                     }
                     Task { try? await Task.sleep(for: .seconds(1.0 / 60.0)); setPressed(false) }
                 } else {
-                    if pressed && insideBounds { configuration.trigger() }
+                    if pressed && insideBounds { 
+                        guard isEnabled else { setPressed(false); return }
+                        configuration.trigger() 
+                    }
                     setPressed(false)
                 }
             } else {
                 // Universal behavior
                 // For small drags that end inside bounds and view hasn't been moving
                 if dragDistance < 5 && still && insideBounds {
+                    guard isEnabled else { setPressed(false); return }
                     // If task is still pending, this is a quick tap - trigger immediately with haptic
                     if setPressedTask != nil {
                         pressed = true
@@ -346,6 +351,7 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                         flash = true
                         Task { try? await Task.sleep(for: .milliseconds(150)); flash = false }
                         if let haptic {
+                            guard isEnabled else { return }
                             Task.detached {
                                 await Haptics.play(haptic)
                             }
@@ -354,6 +360,7 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                     // If task already completed, just trigger (haptic already played)
                     configuration.trigger()
                 } else if pressed && insideBounds && still {
+                    guard isEnabled else { setPressed(false); return }
                     configuration.trigger()
                 }
                 
@@ -387,6 +394,7 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                                 Task { try? await Task.sleep(for: .milliseconds(150)); flash = false }
 
                                 if let haptic {
+                                    guard isEnabled else { return }
                                     Task.detached {
                                         await Haptics.play(haptic)
                                     }
@@ -397,6 +405,7 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                         // Not in scroll view, immediate feedback
                         pressed = true
                         if let haptic {
+                            guard isEnabled else { return }
                             Task.detached {
                                 await Haptics.play(haptic)
                             }
@@ -422,6 +431,7 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                             Task { try? await Task.sleep(for: .milliseconds(150)); flash = false }
 
                             if let haptic {
+                                guard isEnabled else { return }
                                 Task.detached {
                                     try? await Task.sleep(for: .seconds(0.1))
                                     await Haptics.play(haptic)
