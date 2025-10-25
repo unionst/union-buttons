@@ -38,18 +38,23 @@ struct SimultaneousDragGesture: UIGestureRecognizerRepresentable {
     }
     
     func handleUIGestureRecognizerAction(_ gestureRecognizer: UILongPressGestureRecognizer, context: Context) {
+        guard gestureRecognizer.view?.window != nil else {
+            context.coordinator.reset()
+            return
+        }
+        
         switch gestureRecognizer.state {
         case .began:
-            context.coordinator.start = context.converter.location(in: .local)
+            context.coordinator.start = safeLocation(from: context)
             context.coordinator.startTime = Date()
             context.coordinator.hasCheckedSwipe = false
             onBegan?()
-            onChanged?(value(from: context))
+            onChanged?(safeValue(from: context))
         case .changed:
             if context.coordinator.allowsSwipeToDismiss && !context.coordinator.hasCheckedSwipe {
                 if let startTime = context.coordinator.startTime,
                    Date().timeIntervalSince(startTime) < 0.1 {
-                    let val = value(from: context)
+                    let val = safeValue(from: context)
                     let deltaY = val.translation.height
                     let deltaX = abs(val.translation.width)
                     
@@ -63,9 +68,9 @@ struct SimultaneousDragGesture: UIGestureRecognizerRepresentable {
                     context.coordinator.hasCheckedSwipe = true
                 }
             }
-            onChanged?(value(from: context))
+            onChanged?(safeValue(from: context))
         case .ended, .cancelled:
-            onEnded?(value(from: context))
+            onEnded?(safeValue(from: context))
             context.coordinator.reset()
         default:
             break
@@ -77,6 +82,17 @@ struct SimultaneousDragGesture: UIGestureRecognizerRepresentable {
         let start = context.coordinator.start ?? location
         let time = Date()
 
+        return .init(time: time, location: location, startLocation: start)
+    }
+    
+    func safeLocation(from context: Context) -> CGPoint {
+        context.converter.location(in: .local)
+    }
+    
+    func safeValue(from context: Context) -> Value {
+        let location = safeLocation(from: context)
+        let start = context.coordinator.start ?? location
+        let time = Date()
         return .init(time: time, location: location, startLocation: start)
     }
 
