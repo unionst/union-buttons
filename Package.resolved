@@ -1,6 +1,15 @@
 {
-  "originHash" : "d194d792dc79b71bf48e394da87d9febfea28545b81610521ec7ecec1707066b",
+  "originHash" : "0e293be887a5f33b3b1349faa26a1d5cc46b6989fee2c49722c385777e82c900",
   "pins" : [
+    {
+      "identity" : "union-gestures",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/unionst/union-gestures.git",
+      "state" : {
+        "revision" : "be5277fe5f61e8cfbebf25b19b6e5ed12fc27025",
+        "version" : "1.0.0"
+      }
+    },
     {
       "identity" : "union-haptics",
       "kind" : "remoteSourceControl",

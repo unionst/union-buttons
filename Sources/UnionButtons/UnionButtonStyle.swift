@@ -7,6 +7,7 @@
 
 import SwiftUI
 import UnionHaptics
+import UnionGestures
 
 /// Core movement‑aware button style with universal parent movement detection.
 ///
