@@ -9,6 +9,14 @@ import SwiftUI
 import UnionHaptics
 import UnionGestures
 
+private struct Info: Equatable, Sendable {
+	var globalFrame: CGRect
+	var localFrame: CGRect
+	var point: CGPoint
+	var inHoriz: Bool
+	var inVert: Bool
+}
+
 /// Core movement‑aware button style with universal parent movement detection.
 ///
 /// Works with scroll views, sheets, and any moving container. Provides a transform closure
@@ -163,13 +171,6 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
         @State private var setPressedTask: Task<Void, Never>?
         @State private var buttonBounds = CGRect.zero
 
-        private struct Info: Equatable {
-            var globalFrame: CGRect
-            var localFrame: CGRect
-            var point: CGPoint
-            var inHoriz: Bool
-            var inVert: Bool
-        }
         private var dimmed: Bool { pressed || flash }
 
         var body: some View {
