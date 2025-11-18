@@ -15,7 +15,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/unionst/union-haptics.git", .upToNextMajor(from: "1.2.1")),
-        .package(url: "https://github.com/unionst/union-gestures.git", .upToNextMajor(from: "1.0.0"))
+        .package(url: "https://github.com/unionst/union-gestures.git", .upToNextMajor(from: "1.0.1"))
     ],
     targets: [
         .target(
