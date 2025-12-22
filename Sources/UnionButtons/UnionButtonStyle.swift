@@ -170,6 +170,7 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
         @State private var scrollCancelled = false
         @State private var setPressedTask: Task<Void, Never>?
         @State private var buttonBounds = CGRect.zero
+        @State private var touchStartedDuringScroll = false
 
         private var dimmed: Bool { pressed || flash }
 
@@ -302,6 +303,11 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
 
             // Set pressed state based on bounds
             if insideBounds {
+                if setPressedTask == nil && !pressed && !touchStartedDuringScroll {
+                    if Date().timeIntervalSince(lastMove) < grace {
+                        touchStartedDuringScroll = true
+                    }
+                }
                 setPressed(true)
             } else {
                 // Outside bounds - cancel any pending press and un-highlight
@@ -313,11 +319,19 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
         }
         
         private func handleDragEnded(location: CGPoint, translation: CGSize) {
+            let wasScrollStopGesture = touchStartedDuringScroll
+            touchStartedDuringScroll = false
+
             guard !scrollCancelled else {
                 resetAfterScrollCancel()
                 return
             }
-            
+
+            if wasScrollStopGesture {
+                setPressed(false)
+                return
+            }
+
             let insideBounds = buttonBounds.contains(location)
             let still = Date().timeIntervalSince(lastMove) > grace
             let dragDistance = sqrt(pow(translation.width, 2) + pow(translation.height, 2))
