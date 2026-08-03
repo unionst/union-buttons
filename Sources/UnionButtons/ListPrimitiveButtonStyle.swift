@@ -155,8 +155,12 @@ private struct ListButtonStyleView: View {
                 }
 
                 if style.inScrollView {
+                    // A tap inside a scroll view is held for 0.2s before it
+                    // lights, so a quick one has not lit yet when the finger
+                    // leaves. Lighting it here put the highlight on screen
+                    // *after* the tap and left it fading behind the finger,
+                    // which is the whole of what read as a lag.
                     if abs(value.translation.height) < 5 && !longPressActive {
-                        isPressed = true
                         setIsPressedTask?.cancel()
                         setIsPressedTask = nil
                         configuration.trigger()
