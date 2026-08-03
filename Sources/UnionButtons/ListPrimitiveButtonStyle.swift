@@ -34,7 +34,7 @@ public struct ListPrimitiveButtonStyle: PrimitiveButtonStyle {
         verticalPadding: CGFloat = 0,
         haptics: Bool = false,
         scrollView: Axis? = .vertical,
-        animationDuration: Double = 0.06,
+        animationDuration: Double = 0,
         animation: Animation? = nil
     ) {
         self.horizontalPadding = horizontalPadding
@@ -84,7 +84,7 @@ private struct ListButtonStyleView: View {
             // Under the finger at once, faded on release: a highlight that
             // animates in lags the touch, and one that cuts out reads as a
             // flicker rather than a row letting go.
-            .animation(pressed ? nil : (style.animation ?? .snappy(duration: 0.15)), value: pressed)
+            .animation(pressed ? nil : (style.animation ?? .snappy(duration: 0.12)), value: pressed)
             .contentShape(.rect)
             .simultaneousGesture(longPressResetGesture)
             .simultaneousGesture(dragGesture)
