@@ -102,10 +102,10 @@ public struct ListButton<Label: View>: View {
     public var animation: Animation?
     
     /// The animation used when the highlight effect disappears.
-    public var outAnimation: Animation?
+    public var outAnimation: Animation? = .snappy(duration: 0.12)
     
     /// How long the highlight effect persists after tapping.
-    public var highlightDuration: Duration
+    public var highlightDuration: Duration = .milliseconds(120)
     
     /// The action to perform when the button is tapped.
     public var action: () -> Void
@@ -119,9 +119,12 @@ public struct ListButton<Label: View>: View {
     ///
     /// - Parameters:
     ///   - insets: The padding applied to the button content. Defaults to no padding.
-    ///   - animation: The animation for the highlight effect appearing. Defaults to no animation.
-    ///   - outAnimation: The animation for the highlight effect disappearing. Defaults to no animation.
-    ///   - highlightDuration: How long the highlight persists after tapping. Defaults to 1 second.
+    ///   - animation: The animation for the highlight effect appearing. Defaults to no animation,
+    ///     so the highlight lands under the finger rather than catching up to it.
+    ///   - outAnimation: The animation for the highlight effect disappearing. Defaults to a
+    ///     0.12s fade.
+    ///   - highlightDuration: How long the highlight persists after tapping. Defaults to 0.12s;
+    ///     long enough to register the tap, short enough not to trail the finger.
     ///   - action: The action to perform when tapped.
     ///   - label: A view builder that creates the button content.
     ///
@@ -144,8 +147,8 @@ public struct ListButton<Label: View>: View {
     public init(
         insets: EdgeInsets = .init(),
         animation: Animation? = nil,
-        outAnimation: Animation? = nil,
-        highlightDuration: Duration = .seconds(1),
+        outAnimation: Animation? = .snappy(duration: 0.12),
+        highlightDuration: Duration = .milliseconds(120),
         action: @escaping () -> Void,
         @ViewBuilder label: () -> Label
     ) {
@@ -248,7 +251,7 @@ extension ListButton where Label == Text {
     public init(
         _ text: String,
         animation: Animation? = nil,
-        highlightDuration: Duration = .seconds(1),
+        highlightDuration: Duration = .milliseconds(120),
         insets: EdgeInsets = .init(),
         action: @escaping () -> Void
     ) {
