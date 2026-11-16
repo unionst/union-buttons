@@ -9,6 +9,17 @@ import SwiftUI
 import UnionHaptics
 import UnionGestures
 
+@MainActor
+private final class Motion {
+    var lastGlobalFrame = CGRect.zero
+    var lastLocalFrame = CGRect.zero
+    var lastMove = Date.distantPast
+    var inHoriz = false
+    var inVert = false
+    var lastPoint = CGPoint.zero
+    var bounds = CGRect.zero
+}
+
 private struct Info: Equatable, Sendable {
 	var globalFrame: CGRect
 	var localFrame: CGRect
@@ -154,39 +165,24 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
         @Environment(\.isEnabled) private var isEnabled
         @Environment(\.allowsSwipeToDismiss) private var allowsSwipeToDismiss
 
-        // Universal movement detection (default)
-        @State private var lastGlobalFrame = CGRect.zero
-        @State private var lastLocalFrame = CGRect.zero
-        @State private var lastMove = Date.distantPast
+        @State private var motion = Motion()
 
-        // Legacy scroll view detection (scrollViewOnly = true)
-        @State private var inHoriz = false
-        @State private var inVert = false
-        @State private var lastPoint = CGPoint.zero
+        private var lastMove: Date { motion.lastMove }
+        private var inHoriz: Bool { motion.inHoriz }
+        private var inVert: Bool { motion.inVert }
+        private var buttonBounds: CGRect { motion.bounds }
 
         // UI + haptic state
         @State private var flash = false
         @State private var pressed = false
         @State private var scrollCancelled = false
         @State private var setPressedTask: Task<Void, Never>?
-        @State private var buttonBounds = CGRect.zero
         @State private var touchStartedDuringScroll = false
 
         private var dimmed: Bool { pressed || flash }
 
         var body: some View {
             transform(configuration.label, dimmed)
-                .background {
-                    GeometryReader { proxy in
-                        Color.clear
-                            .onAppear {
-                                buttonBounds = proxy.frame(in: .local)
-                            }
-                            .onChange(of: proxy.frame(in: .local)) { _, newBounds in
-                                buttonBounds = newBounds
-                            }
-                    }
-                }
                 .onGeometryChange(for: Info.self) { proxy in
                     let globalFrame = proxy.frame(in: .global)
                     let localFrame = proxy.frame(in: .local)
@@ -195,39 +191,35 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
                     let point = CGPoint(x: globalFrame.minX, y: globalFrame.minY)
                     return Info(globalFrame: globalFrame, localFrame: localFrame, point: point, inHoriz: horiz, inVert: vert)
                 } action: { info in
+                    motion.bounds = info.localFrame
+
                     // Always track scroll view presence for both modes
-                    inHoriz = info.inHoriz
-                    inVert = info.inVert
+                    motion.inHoriz = info.inHoriz
+                    motion.inVert = info.inVert
 
                     if scrollViewOnly {
                         // Legacy scroll view detection
-                        if (inHoriz || inVert) && info.point != lastPoint {
-                            lastPoint = info.point
-                            lastMove = Date()
-                            setPressedTask?.cancel()
-                            setPressedTask = nil
-                            pressed = false
-                            flash = false
+                        if (inHoriz || inVert) && info.point != motion.lastPoint {
+                            motion.lastPoint = info.point
+                            motion.lastMove = Date()
+                            releaseForMovement()
                         }
                     } else {
                         // Universal movement detection (default)
-                        let globalMoved = info.globalFrame != lastGlobalFrame
-                        let localMoved = info.localFrame != lastLocalFrame
+                        let globalMoved = info.globalFrame != motion.lastGlobalFrame
+                        let localMoved = info.localFrame != motion.lastLocalFrame
 
                         // If global moved but local didn't (or they moved differently),
                         // it suggests the whole view is being moved by a parent
                         if globalMoved && (!localMoved ||
-                            (info.globalFrame.origin.distance(to: lastGlobalFrame.origin) >
-                             info.localFrame.origin.distance(to: lastLocalFrame.origin))) {
-                            lastMove = Date()
-                            setPressedTask?.cancel()
-                            setPressedTask = nil
-                            pressed = false
-                            flash = false
+                            (info.globalFrame.origin.distance(to: motion.lastGlobalFrame.origin) >
+                             info.localFrame.origin.distance(to: motion.lastLocalFrame.origin))) {
+                            motion.lastMove = Date()
+                            releaseForMovement()
                         }
 
-                        lastGlobalFrame = info.globalFrame
-                        lastLocalFrame = info.localFrame
+                        motion.lastGlobalFrame = info.globalFrame
+                        motion.lastLocalFrame = info.localFrame
                     }
                 }
                 .onChange(of: isEnabled) { oldValue, newValue in
@@ -419,6 +411,14 @@ public struct UnionButtonStyle<Transformed: View>: PrimitiveButtonStyle {
         }
 
         // MARK: Interaction lifecycle
+        private func releaseForMovement() {
+            guard pressed || flash || setPressedTask != nil else { return }
+            setPressedTask?.cancel()
+            setPressedTask = nil
+            pressed = false
+            flash = false
+        }
+
         private func setPressed(_ pressing: Bool) {
             // Allow unpressing even when disabled to fix stuck state
             if !pressing {
